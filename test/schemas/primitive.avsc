@@ -1,0 +1,34 @@
+{
+  "type": "record",
+  "name": "Test",
+  "fields": [
+    {
+      "name": "bool",
+      "type": "boolean"
+    },
+    {
+      "name": "str",
+      "type": "string"
+    },
+    {
+      "name": "long",
+      "type": "long"
+    },
+    {
+      "name": "float",
+      "type": "float"
+    },
+    {
+      "name": "double",
+      "type": "double"
+    },
+    {
+      "name": "int",
+      "type": "int"
+    },
+    {
+      "name": "other",
+      "type": "null"
+    }
+  ]
+}

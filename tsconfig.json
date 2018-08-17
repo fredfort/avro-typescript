@@ -1,13 +1,12 @@
 {
-    "compilerOptions": {
-        "module": "commonjs",
-        "target": "es5",
-        "noImplicitAny": false,
-        "sourceMap": false,
-        "declaration": true,
-        "outDir": "lib"
-    },
-    "files": [
-        "src/index.ts","src/model.ts"
-    ]
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es5",
+    "noImplicitAny": false,
+    "sourceMap": false,
+    "declaration": true,
+    "outDir": "./dist",
+    "noUnusedLocals": true
+  },
+  "files": ["./src/index.ts", "./src/model.ts", "./src/example.ts"]
 }

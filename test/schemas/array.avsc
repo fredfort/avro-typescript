@@ -1,0 +1,20 @@
+{
+  "type": "record",
+  "name": "Test",
+  "fields": [
+    {
+      "name": "simpleArray",
+      "type": {
+        "type": "array",
+        "items": "string"
+      }
+    },
+    {
+      "name": "multiTypeArray",
+      "type": {
+        "type": "array",
+        "items": ["string", "int"]
+      }
+    }
+  ]
+}

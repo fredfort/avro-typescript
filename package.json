@@ -1,13 +1,16 @@
 {
-  "name": "avro-typescript",
-  "version": "0.0.5",
+  "name": "convert-avro-typescript",
+  "version": "0.1.0",
   "description": "TypeSript code generator for Apache Avro types",
   "main": "./lib/index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "tsc -p . && tsc -p test/ && node test/test.js"
+    "start": "tsc -p . && node ./dist/example.js",
+    "build": "tsc -p .",
+    "test": "mocha -r ts-node/register test/*.spec.ts",
+    "tslint":"tslint -c tslint.json 'src/**/*.ts'"
   },
   "repository": {
     "type": "git",
@@ -26,6 +29,13 @@
   },
   "homepage": "https://github.com/joewood/avro-typescript#readme",
   "devDependencies": {
-    "@types/node": "^7.0.22"
+    "@types/chai": "^4.1.4",
+    "@types/mocha": "^5.2.5",
+    "@types/node": "^7.0.22",
+    "chai": "^4.1.2",
+    "mocha": "^5.2.0",
+    "ts-node": "^7.0.1",
+    "tslint": "^5.11.0",
+    "typescript": "^3.0.1"
   }
 }
