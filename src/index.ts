@@ -67,7 +67,10 @@ function convertType(type: Type, buffer: string[]): string {
 		return convertRecord(type, buffer);
 	} else if (isArrayType(type)) {
 		// array, call recursively for the array element type
-		return convertType(type.items, buffer) + "[]";
+		if ([].concat(type.items).length === 1) {
+      return `${convertType(type.items, buffer)}[]`
+    }
+    return `(${convertType(type.items, buffer)})[]`
 	} else if (isMapType(type)) {
 		// Dictionary of types, string as key
 		return `{ [index:string]:${convertType(type.values, buffer)} }`;
