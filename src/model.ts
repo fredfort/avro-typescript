@@ -2,6 +2,11 @@
 
 export interface Schema {}
 
+export interface Options {
+  convertEnumToType?: boolean
+  removeNameSpace?: boolean
+}
+
 export type Type = NameOrType | NameOrType[];
 export type NameOrType = TypeNames | RecordType | ArrayType | NamedType;
 export type TypeNames = "record" | "array" | "null" | "map" | string;

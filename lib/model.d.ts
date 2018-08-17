@@ -1,6 +1,10 @@
 /**** Contains the Interfaces and Type Guards for Avro schema */
 export interface Schema {
 }
+export interface Options {
+    convertEnumToType?: boolean;
+    removeNameSpace?: boolean;
+}
 export declare type Type = NameOrType | NameOrType[];
 export declare type NameOrType = TypeNames | RecordType | ArrayType | NamedType;
 export declare type TypeNames = "record" | "array" | "null" | "map" | string;
