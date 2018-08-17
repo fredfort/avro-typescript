@@ -1,8 +1,8 @@
 {
-  "name": "convert-avro-typescript",
+  "name": "@fredfort/avro-typescript",
   "version": "0.1.0",
   "description": "TypeSript code generator for Apache Avro types",
-  "main": "./lib/index.js",
+  "main": "./dist/index.js",
   "directories": {
     "test": "test"
   },
@@ -14,20 +14,20 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/joewood/avro-typescript.git"
+    "url": "git+https://github.com/fredfort/avro-typescript.git"
   },
   "readme": "READMD.md",
-  "types": "./lib/index.d.ts",
+  "types": "./dist/index.d.ts",
   "keywords": [
     "avro",
     "typescript"
   ],
-  "author": "Joe Wood",
+  "author": "Fred Fort",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/joewood/avro-typescript/issues"
+    "url": "https://github.com/fredfort/avro-typescript/issues"
   },
-  "homepage": "https://github.com/joewood/avro-typescript#readme",
+  "homepage": "https://github.com/fredfort/avro-typescript#readme",
   "devDependencies": {
     "@types/chai": "^4.1.4",
     "@types/mocha": "^5.2.5",
