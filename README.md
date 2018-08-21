@@ -5,7 +5,7 @@ A simple JS library to convert Avro Schemas to TypeScript interfaces.
 ## Install
 
 ```
-TODO - You only can clone the library and include it in the project at the moment
+npm install create-typescript-from-avro
 ```
 
 The library can be run in node.js or the browser. It takes a Avro Schema as a JavaScript object (from JSON) and returns the TypeScript code as a string.

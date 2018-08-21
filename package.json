@@ -1,5 +1,5 @@
 {
-  "name": "@fredfort/avro-typescript",
+  "name": "create-typescript-from-avro",
   "version": "0.1.0",
   "description": "TypeSript code generator for Apache Avro types",
   "main": "./dist/index.js",
