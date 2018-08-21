@@ -43,7 +43,7 @@ function convertAndSendToStdout(files, args) {
             convertEnumToType: Boolean(args.convertEnumToType),
             removeNameSpace: Boolean(args.removeNameSpace)
         });
-        process.stdout.write("// " + path_1.basename(f) + "\n\n" + tsContent + "\n");
+        process.stdout.write("// Generated from " + path_1.basename(f) + "\n\n" + tsContent + "\n");
     });
 }
 var _a = process.argv, args = _a.slice(2);

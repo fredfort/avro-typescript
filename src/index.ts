@@ -31,7 +31,7 @@ export function avroToTypeScript(
 
 /** Convert an Avro Record type. Return the name, but add the definition to the file */
 function convertRecord(recordType: RecordType, fileBuffer: string[]): string {
-  let buffer = `export interface ${recordType.name} {\n`
+  let buffer = `export interface ${removeNameSpace(recordType.name)} {\n`
   for (const field of recordType.fields) {
     buffer += convertFieldDec(field, fileBuffer) + '\n'
   }
@@ -42,9 +42,9 @@ function convertRecord(recordType: RecordType, fileBuffer: string[]): string {
 
 /** Convert an Avro Enum type. Return the name, but add the definition to the file */
 function convertEnum(enumType: EnumType, fileBuffer: string[]): string {
-  const enumDef = `export enum ${enumType.name} { ${enumType.symbols.join(
-    ', ',
-  )} }\n`
+  const enumDef = `export enum ${enumType.name} { ${enumType.symbols
+    .join(', ')
+  } }\n`
   fileBuffer.push(enumDef)
   return enumType.name
 }
@@ -61,10 +61,10 @@ function convertEnumToType(enumType: EnumType, fileBuffer: string[]): string {
 function convertType(type: Type, buffer: string[]): string {
   // if it's just a name, then use that
   if (typeof type === 'string') {
-    return convertPrimitive(type) || type
+    return convertPrimitive(type) || removeNameSpace(type)
   } else if (type instanceof Array) {
     // array means a Union. Use the names and call recursively
-    return type.map((t) => convertType(t, buffer)).join(' | ')
+    return type.map((t) => removeNameSpace(convertType(t, buffer))).join(' | ')
   } else if (isRecordType(type)) {
     // } type)) {
     // record, use the name and add to the buffer
@@ -118,5 +118,5 @@ function convertFieldDec(field: Field, buffer: string[]): string {
   // Union Type
   return `\t${field.name}${
     isOptional(field.type) ? '?' : ''
-  }: ${removeNameSpace(convertType(field.type, buffer))}`
+  }: ${convertType(field.type, buffer)}`
 }

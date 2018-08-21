@@ -45,4 +45,11 @@ describe('TypeScript interface', () => {
     expect(getAvroToTypeScript(schema, {convertEnumToType: true})).to.be.equal(expectedResult)
   })
 
+  it('Should create the correct interfaces for object with namespaces', () => {
+    const fileName = 'namespace'
+    const schema = getSchema(fileName)
+    const expectedResult = getResult(fileName)
+    expect(getAvroToTypeScript(schema, {convertEnumToType: true, removeNameSpace: true})).to.be.equal(expectedResult)
+  })
+
 })

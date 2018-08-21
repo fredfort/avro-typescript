@@ -27,7 +27,7 @@ function avroToTypeScript(recordType, userOptions) {
 exports.avroToTypeScript = avroToTypeScript;
 /** Convert an Avro Record type. Return the name, but add the definition to the file */
 function convertRecord(recordType, fileBuffer) {
-    var buffer = "export interface " + recordType.name + " {\n";
+    var buffer = "export interface " + removeNameSpace(recordType.name) + " {\n";
     for (var _i = 0, _a = recordType.fields; _i < _a.length; _i++) {
         var field = _a[_i];
         buffer += convertFieldDec(field, fileBuffer) + '\n';
@@ -38,7 +38,8 @@ function convertRecord(recordType, fileBuffer) {
 }
 /** Convert an Avro Enum type. Return the name, but add the definition to the file */
 function convertEnum(enumType, fileBuffer) {
-    var enumDef = "export enum " + enumType.name + " { " + enumType.symbols.join(', ') + " }\n";
+    var enumDef = "export enum " + enumType.name + " { " + enumType.symbols
+        .join(', ') + " }\n";
     fileBuffer.push(enumDef);
     return enumType.name;
 }
@@ -53,11 +54,11 @@ function convertEnumToType(enumType, fileBuffer) {
 function convertType(type, buffer) {
     // if it's just a name, then use that
     if (typeof type === 'string') {
-        return convertPrimitive(type) || type;
+        return convertPrimitive(type) || removeNameSpace(type);
     }
     else if (type instanceof Array) {
         // array means a Union. Use the names and call recursively
-        return type.map(function (t) { return convertType(t, buffer); }).join(' | ');
+        return type.map(function (t) { return removeNameSpace(convertType(t, buffer)); }).join(' | ');
     }
     else if (model_1.isRecordType(type)) {
         // } type)) {
@@ -111,5 +112,5 @@ function removeNameSpace(value) {
 }
 function convertFieldDec(field, buffer) {
     // Union Type
-    return "\t" + field.name + (model_1.isOptional(field.type) ? '?' : '') + ": " + removeNameSpace(convertType(field.type, buffer));
+    return "\t" + field.name + (model_1.isOptional(field.type) ? '?' : '') + ": " + convertType(field.type, buffer);
 }
