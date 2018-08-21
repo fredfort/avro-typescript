@@ -14,7 +14,7 @@ The library can be run in node.js or the browser. It takes a Avro Schema as a Ja
 
 ```typescript
 import * as fs from "fs";
-import { avroToTypeScript, RecordType } from "../lib/";
+import { avroToTypeScript, RecordType } from "create-typescript-from-avro";
 
 const schemaText = fs.readFileSync(__dirname + "/example.avsc", "UTF8");
 const schema: RecordType = JSON.parse(schemaText);
