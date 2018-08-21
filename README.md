@@ -23,6 +23,23 @@ console.log(
 );
 ```
 
+## Cli
+
+To use this package from the CLI you need the `avro-to-ts` which is added either locally or globally depending on how you installed the package. Options are:
+```
+--file or -f                - File or directory path(s) of .avsc files
+-- convertEnumToType or -c  - See above
+-- removeNameSpace or -r    - See above
+```
+
+Example:
+
+```
+avro-to-ts -f somefolder -f someotherfolder/someschema.avsc -c -r > model.ts
+```
+
+This example takes all the `.avsc` files recursively from `somefolder` and `someschema.avsc`, generates the appropriate `.ts` content and pipes it into `model.ts`
+
 ## Features
 
 Most Avro features are supported, including:

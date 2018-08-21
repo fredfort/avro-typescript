@@ -6,7 +6,8 @@
     "sourceMap": false,
     "declaration": true,
     "outDir": "./dist",
-    "noUnusedLocals": true
+    "noUnusedLocals": true,
+    "esModuleInterop": true
   },
-  "files": ["./src/index.ts", "./src/model.ts"]
+  "files": ["./src/index.ts", "./src/model.ts", "./src/cli.ts"]
 }
