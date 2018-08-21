@@ -8,5 +8,5 @@
     "outDir": "./dist",
     "noUnusedLocals": true
   },
-  "files": ["./src/index.ts", "./src/model.ts", "./src/example.ts"]
+  "files": ["./src/index.ts", "./src/model.ts"]
 }

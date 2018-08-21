@@ -1,13 +1,12 @@
 {
   "name": "create-typescript-from-avro",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TypeSript code generator for Apache Avro types",
   "main": "./dist/index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "start": "tsc -p . && node ./dist/example.js",
     "build": "tsc -p .",
     "test": "mocha -r ts-node/register test/*.spec.ts",
     "tslint": "tslint -c tslint.json 'src/**/*.ts'"

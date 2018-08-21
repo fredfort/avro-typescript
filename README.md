@@ -46,9 +46,3 @@ npm test
 ```
 npm build
 ```
-
-## Try the app
-
-```
-npm start
-```
