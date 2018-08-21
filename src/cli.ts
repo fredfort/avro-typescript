@@ -47,7 +47,7 @@ function convertAndSendToStdout(files: string[], args: Args) {
       convertEnumToType: Boolean(args.convertEnumToType),
       removeNameSpace: Boolean(args.removeNameSpace)
     });
-    process.stdout.write(`// ${basename(f)}\n\n${tsContent}\n`);
+    process.stdout.write(`// Generated from ${basename(f)}\n\n${tsContent}\n`);
   });
 }
 
