@@ -1,6 +1,6 @@
 {
   "name": "create-typescript-from-avro",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "TypeSript code generator for Apache Avro types",
   "main": "./dist/index.js",
   "bin": {
