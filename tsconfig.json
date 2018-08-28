@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es5",
+    "module": "es6",
+    "target": "es6",
     "noImplicitAny": false,
-    "sourceMap": false,
-    "declaration": true,
+    "declaration": false,
     "outDir": "./dist",
     "noUnusedLocals": true,
     "esModuleInterop": true
   },
-  "files": ["./src/index.ts", "./src/model.ts", "./src/cli.ts"]
+  "include": [
+    "./src/**/*"
+  ]
 }

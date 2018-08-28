@@ -12,7 +12,12 @@
     "interface-name": [true, "never-prefix"],
     "quotemark": [true, "single"],
     "array-type": [true, "array"],
-    "semicolon": [true, "never"]
+    "semicolon": [true, "never"],
+    "ordered-imports": [false, "never"],
+    "object-literal-sort-keys": [false, "never"],
+    "max-classes-per-file": [false, 1],
+    "member-ordering":[false, 1],
+    "prefer-for-of":[false],
   },
   "rulesDirectory": []
 }
