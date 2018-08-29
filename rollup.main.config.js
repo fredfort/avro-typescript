@@ -13,6 +13,7 @@ export default {
   plugins: [
     typescript({
       typescript: require('typescript'),
+      tsconfig: './tsconfig.build.json'
     }),
   ],
 }
