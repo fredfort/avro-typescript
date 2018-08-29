@@ -13,8 +13,10 @@ import { getTypeName, asSelfExecuting, joinConditional, className, qualifiedName
 import { generateFieldType } from './generateFieldType'
 import { FqnResolver } from './FqnResolver'
 
-function getKey(t: any, fqns: FqnResolver) {
-  if (isRecordType(t)) {
+function getKey(t: any, fqns: FqnResolver, mapping: Map<string, HasName>) {
+  if (!isPrimitive(t) && typeof t === 'string') {
+    return getKey(resolveReference(t, fqns, mapping), fqns, mapping)
+  } else if (isRecordType(t)) {
     return `${className(t)}.FQN`
   } else if (isEnumType(t)) {
     return `'${qualifiedName(t)}'`
@@ -31,21 +33,24 @@ function generateAssignmentValue(type: any, fqns: FqnResolver, mapping: Map<stri
   } else if (typeof type === 'string') {
     return generateAssignmentValue(resolveReference(type, fqns, mapping), fqns, mapping, inputVar)
   } else if (isArrayType(type)) {
-    if (isUnion(type.items)) {
+    if (isUnion(type.items) && type.items.length > 1) {
       return `${inputVar}.map((e) => {
         return ${generateAssignmentValue(type.items, fqns, mapping, 'e')}
       })`
     }
     return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, fqns, mapping, 'e')})`
   } else if (isUnion(type)) {
+    if (type.length === 1) {
+      return generateAssignmentValue(type[0], fqns, mapping, inputVar)
+    }
     const nonNullTypes = type.filter((t) => (t as any) !== 'null')
     const hasNull = nonNullTypes.length !== type.length
     let conditions: string[] = null
     let branches: string[] = null
 
-    conditions = nonNullTypes.map((t) => `${inputVar}[${getKey(t, fqns)}] !== undefined`)
+    conditions = nonNullTypes.map((t) => `${inputVar}[${getKey(t, fqns, mapping)}] !== undefined`)
     branches = nonNullTypes.map(
-      (t) => `return ${generateAssignmentValue(t, fqns, mapping, `${inputVar}[${getKey(t, fqns)}]`)}`,
+      (t) => `return ${generateAssignmentValue(t, fqns, mapping, `${inputVar}[${getKey(t, fqns, mapping)}]`)}`,
     )
     if (hasNull) {
       conditions = [`${inputVar} === null`].concat(conditions)

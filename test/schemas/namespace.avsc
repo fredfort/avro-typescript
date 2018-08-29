@@ -9,35 +9,48 @@
     },
     {
       "name": "owner",
-      "type": {
-        "type": "record",
-        "name": "Person",
-        "fields": [
-          {
-            "type": "string",
-            "name": "firstname"
-          },
-          {
-            "type": "string",
-            "name": "lastname"
-          }
-        ]
-      }
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "Human",
+          "fields": [
+            {
+              "type": "string",
+              "name": "firstname"
+            },
+            {
+              "type": "string",
+              "name": "lastname"
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "extra",
       "type": {
         "type": "array",
-        "items": ["Person", "com.animals.Dog"]
+        "items": [
+          "Human",
+          "com.animals.Dog"
+        ]
       }
     },
     {
       "name": "friend",
-      "type": "com.animals.Dog"
+      "type": [
+        "null",
+        "com.animals.Dog"
+      ]
     },
     {
       "name": "other",
-      "type": ["com.animals.Dog", "Person"]
+      "type": [
+        "null",
+        "com.animals.Dog",
+        "Human"
+      ]
     }
   ]
 }

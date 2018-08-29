@@ -10,7 +10,7 @@ export function className(type: RecordType) {
 }
 
 export function qualifiedName(type: HasName) {
-  return `${type.namespace}.${type.name}`
+  return type.namespace ? `${type.namespace}.${type.name}` : type.name
 }
 
 export function resolveReference(ref: string, fqns: FqnResolver, mapping: Map<string, HasName>): HasName {

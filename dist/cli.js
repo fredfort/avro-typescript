@@ -144,7 +144,7 @@ function className(type) {
     return type.name;
 }
 function qualifiedName(type) {
-    return `${type.namespace}.${type.name}`;
+    return type.namespace ? `${type.namespace}.${type.name}` : type.name;
 }
 function resolveReference(ref, fqns, mapping) {
     const fqn = fqns.get(ref);
@@ -226,8 +226,11 @@ function generateFieldType(type, fqns, mapping) {
     throw new TypeError(`Unknown type ${type}!`);
 }
 
-function getKey(t, fqns) {
-    if (isRecordType(t)) {
+function getKey(t, fqns, mapping) {
+    if (!isPrimitive(t) && typeof t === 'string') {
+        return getKey(resolveReference(t, fqns, mapping), fqns, mapping);
+    }
+    else if (isRecordType(t)) {
         return `${className(t)}.FQN`;
     }
     else if (isEnumType(t)) {
@@ -248,7 +251,7 @@ function generateAssignmentValue(type, fqns, mapping, inputVar) {
         return generateAssignmentValue(resolveReference(type, fqns, mapping), fqns, mapping, inputVar);
     }
     else if (isArrayType(type)) {
-        if (isUnion(type.items)) {
+        if (isUnion(type.items) && type.items.length > 1) {
             return `${inputVar}.map((e) => {
         return ${generateAssignmentValue(type.items, fqns, mapping, 'e')}
       })`;
@@ -256,12 +259,15 @@ function generateAssignmentValue(type, fqns, mapping, inputVar) {
         return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, fqns, mapping, 'e')})`;
     }
     else if (isUnion(type)) {
+        if (type.length === 1) {
+            return generateAssignmentValue(type[0], fqns, mapping, inputVar);
+        }
         const nonNullTypes = type.filter((t) => t !== 'null');
         const hasNull = nonNullTypes.length !== type.length;
         let conditions = null;
         let branches = null;
-        conditions = nonNullTypes.map((t) => `${inputVar}[${getKey(t, fqns)}] !== undefined`);
-        branches = nonNullTypes.map((t) => `return ${generateAssignmentValue(t, fqns, mapping, `${inputVar}[${getKey(t, fqns)}]`)}`);
+        conditions = nonNullTypes.map((t) => `${inputVar}[${getKey(t, fqns, mapping)}] !== undefined`);
+        branches = nonNullTypes.map((t) => `return ${generateAssignmentValue(t, fqns, mapping, `${inputVar}[${getKey(t, fqns, mapping)}]`)}`);
         if (hasNull) {
             conditions = [`${inputVar} === null`].concat(conditions);
             branches = [`return null`].concat(branches);
@@ -295,8 +301,11 @@ function generateDeserialize(type, fqns, mapping) {
   }`;
 }
 
-function getKey$1(t, fqns) {
-    if (isRecordType(t)) {
+function getKey$1(t, fqns, mapping) {
+    if (!isPrimitive(t) && typeof t === 'string') {
+        return getKey$1(resolveReference(t, fqns, mapping), fqns, mapping);
+    }
+    else if (isRecordType(t)) {
         return `[${className(t)}.FQN]`;
     }
     else if (isEnumType(t)) {
@@ -344,7 +353,7 @@ function generateCondition(type, fqns, mapping, inputVar) {
 }
 function generateUnionWrapper(type, fqns, mapping, inputVar) {
     if (isPrimitive(type) || isArrayType(type) || isMapType(type) || isEnumType(type) || isRecordType(type)) {
-        return `return { ${getKey$1(type, fqns)}: ${generateAssignmentValue$1(type, fqns, mapping, inputVar)} }`;
+        return `return { ${getKey$1(type, fqns, mapping)}: ${generateAssignmentValue$1(type, fqns, mapping, inputVar)} }`;
     }
     else if (typeof type === 'string') {
         return generateUnionWrapper(resolveReference(type, fqns, mapping), fqns, mapping, inputVar);
@@ -361,7 +370,7 @@ function generateAssignmentValue$1(type, fqns, mapping, inputVar) {
         return `${className(type)}.serialize(${inputVar})`;
     }
     else if (isArrayType(type)) {
-        if (isUnion(type.items)) {
+        if (isUnion(type.items) && type.items.length > 1) {
             return `${inputVar}.map((e) => {
         return ${generateAssignmentValue$1(type.items, fqns, mapping, 'e')}
       })`;
@@ -369,6 +378,9 @@ function generateAssignmentValue$1(type, fqns, mapping, inputVar) {
         return `${inputVar}.map((e) => ${generateAssignmentValue$1(type.items, fqns, mapping, 'e')})`;
     }
     else if (isUnion(type)) {
+        if (type.length === 1) {
+            return generateAssignmentValue$1(type[0], fqns, mapping, inputVar);
+        }
         const hasNull = type.indexOf('null') >= 0;
         const withoutNull = type.filter((t) => t !== 'null');
         let conditions = withoutNull.map((t) => generateCondition(t, fqns, mapping, inputVar));

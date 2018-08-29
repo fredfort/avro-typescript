@@ -12,8 +12,10 @@ import {
 import { asSelfExecuting, joinConditional, className, qualifiedName, getTypeName, resolveReference } from './utils'
 import { FqnResolver } from './FqnResolver'
 
-function getKey(t: any, fqns: FqnResolver) {
-  if (isRecordType(t)) {
+function getKey(t: any, fqns: FqnResolver, mapping: Map<string, HasName>) {
+  if (!isPrimitive(t) && typeof t === 'string') {
+    return getKey(resolveReference(t, fqns, mapping), fqns, mapping)
+  } else if (isRecordType(t)) {
     return `[${className(t)}.FQN]`
   } else if (isEnumType(t)) {
     return `'${qualifiedName(t)}'`
@@ -56,7 +58,7 @@ function generateCondition(type: any, fqns: FqnResolver, mapping: Map<string, Ha
 
 function generateUnionWrapper(type: any, fqns: FqnResolver, mapping: Map<string, HasName>, inputVar: string) {
   if (isPrimitive(type) || isArrayType(type) || isMapType(type) || isEnumType(type) || isRecordType(type)) {
-    return `return { ${getKey(type, fqns)}: ${generateAssignmentValue(type, fqns, mapping, inputVar)} }`
+    return `return { ${getKey(type, fqns, mapping)}: ${generateAssignmentValue(type, fqns, mapping, inputVar)} }`
   } else if (typeof type === 'string') {
     return generateUnionWrapper(resolveReference(type, fqns, mapping), fqns, mapping, inputVar)
   } else {
@@ -75,13 +77,16 @@ function generateAssignmentValue(
   } else if (isRecordType(type)) {
     return `${className(type)}.serialize(${inputVar})`
   } else if (isArrayType(type)) {
-    if (isUnion(type.items)) {
+    if (isUnion(type.items) && type.items.length > 1) {
       return `${inputVar}.map((e) => {
         return ${generateAssignmentValue(type.items, fqns, mapping, 'e')}
       })`
     }
     return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, fqns, mapping, 'e')})`
   } else if (isUnion(type)) {
+    if (type.length === 1) {
+      return generateAssignmentValue(type[0], fqns, mapping, inputVar)
+    }
     const hasNull = type.indexOf('null' as any) >= 0
     const withoutNull = type.filter((t) => (t as any) !== 'null')
     let conditions = withoutNull.map((t) => generateCondition(t, fqns, mapping, inputVar))
