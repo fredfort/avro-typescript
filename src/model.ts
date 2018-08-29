@@ -4,9 +4,17 @@ export interface Options {
   removeNameSpace?: boolean
 }
 
+const PRIMITIVE_TYPES = ['string', 'boolean', 'long', 'int', 'double', 'float', 'bytes', 'null']
+const NUMBER_TYPES = ['long', 'int', 'double', 'float']
+
 export type Type = NameOrType | NameOrType[]
 export type NameOrType = TypeNames | RecordType | ArrayType | NamedType
 export type TypeNames = 'record' | 'array' | 'null' | 'map' | string
+
+export interface HasName extends BaseType {
+  name: string
+  namespace: string
+}
 
 export interface Field {
   name: string
@@ -18,7 +26,7 @@ export interface BaseType {
   type: TypeNames
 }
 
-export interface RecordType extends BaseType {
+export interface RecordType extends BaseType, HasName {
   type: 'record'
   name: string
   fields: Field[]
@@ -34,10 +42,14 @@ export interface MapType extends BaseType {
   values: Type
 }
 
-export interface EnumType extends BaseType {
+export interface EnumType extends BaseType, HasName {
   type: 'enum'
   name: string
   symbols: string[]
+}
+
+export interface NumberType extends BaseType {
+  type: 'long' | 'int' | 'double' | 'float'
 }
 
 export interface NamedType extends BaseType {
@@ -62,6 +74,14 @@ export function isEnumType(type: BaseType): type is EnumType {
 
 export function isUnion(type: Type): type is NamedType[] {
   return type instanceof Array
+}
+
+export function isNumberType(type: BaseType): type is NumberType {
+  return NUMBER_TYPES.indexOf(type.type) >= 0
+}
+
+export function isPrimitive(type: Type): boolean {
+  return PRIMITIVE_TYPES.indexOf(type as string) >= 0
 }
 
 export function isOptional(type: Type): boolean {

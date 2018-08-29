@@ -1,4 +1,4 @@
-export interface Test {
+export interface RecordWithArrays {
   simpleArray: string[]
   multiTypeArray: (string | number)[]
 }
