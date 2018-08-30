@@ -228,6 +228,9 @@ function alphaComparator(a, b) {
 function interfaceName(type) {
     return `I${type.name}`;
 }
+function avroWrapperName(type) {
+    return `I${type.name}AvroWrapper`;
+}
 function className(type) {
     return type.name;
 }
@@ -235,11 +238,10 @@ function enumName(type) {
     return type.name;
 }
 function qualifiedNameFor(type, transform, context) {
-    const baseName = transform(type);
     if (context.options.removeNameSpace) {
-        return baseName;
+        return transform(type);
     }
-    return type.namespace ? `${type.namespace}.${baseName}` : `${baseName}`;
+    return qualifiedName(type, transform);
 }
 function qInterfaceName(type, context) {
     return qualifiedNameFor(type, interfaceName, context);
@@ -250,8 +252,11 @@ function qClassName(type, context) {
 function qEnumName(type, context) {
     return qualifiedNameFor(type, enumName, context);
 }
-function qualifiedName(type) {
-    return type.namespace ? `${type.namespace}.${type.name}` : type.name;
+function qAvroWrapperName(type, context) {
+    return qualifiedNameFor(type, avroWrapperName, context);
+}
+function qualifiedName(type, transform = (e) => e.name) {
+    return type.namespace ? `${type.namespace}.${transform(type)}` : transform(type);
 }
 function resolveReference(ref, context) {
     const fqn = context.fqnResolver.get(ref);
@@ -380,11 +385,11 @@ function generateAssignmentValue(type, context, inputVar) {
     }
     else if (isArrayType(type)) {
         if (isUnion(type.items) && type.items.length > 1) {
-            return `${inputVar}.map((e: any) => {
+            return `${inputVar}.map((e) => {
         return ${generateAssignmentValue(type.items, context, 'e')}
       })`;
         }
-        return `${inputVar}.map((e: any) => ${generateAssignmentValue(type.items, context, 'e')})`;
+        return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`;
     }
     else if (isUnion(type)) {
         if (type.length === 1) {
@@ -422,10 +427,80 @@ function generateDeserializeFieldAssignment(field, context) {
     return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)},`;
 }
 function generateDeserialize(type, context) {
-    return `public static deserialize(input: any): ${className(type)} {
+    return `public static deserialize(input: ${avroWrapperName(type)}): ${className(type)} {
     return new ${className(type)}({
       ${type.fields.map((f) => generateDeserializeFieldAssignment(f, context)).join('\n')}
     })
+  }`;
+}
+
+function getTypeKey(type, context) {
+    if (isPrimitive(type)) {
+        return type;
+    }
+    else if (isEnumType(type)) {
+        return qualifiedName(type, enumName);
+    }
+    else if (isRecordType(type)) {
+        return qualifiedName(type, className);
+    }
+    else if (isArrayType(type) || isMapType(type)) {
+        return type.type;
+    }
+    else if (typeof type === 'string') {
+        return getTypeKey(resolveReference(type, context), context);
+    }
+    throw new TypeError(`Unknown type`);
+}
+function quoteTypeKey(key) {
+    if (key.indexOf('.') >= 0) {
+        return `'${key}'`;
+    }
+    return key;
+}
+function generateAvroWrapperFieldType(type, context) {
+    if (isPrimitive(type)) {
+        return generatePrimitive(type);
+    }
+    else if (isEnumType(type)) {
+        return qEnumName(type, context);
+    }
+    else if (isRecordType(type)) {
+        return qAvroWrapperName(type, context);
+    }
+    else if (isArrayType(type)) {
+        const itemsType = generateAvroWrapperFieldType(type.items, context);
+        return isUnion(type.items) && type.items.length > 1 ? `(${itemsType})[]` : `${itemsType}[]`;
+    }
+    else if (isUnion(type)) {
+        if (type.length === 1) {
+            return generateAvroWrapperFieldType(type[0], context);
+        }
+        const withoutNull = type.filter((t) => t !== 'null');
+        const hasNull = withoutNull.length !== type.length;
+        const fields = withoutNull
+            .map((t) => `${quoteTypeKey(getTypeKey(t, context))}?: ${generateAvroWrapperFieldType(t, context)}`)
+            .join(',\n');
+        return `{
+      ${fields}
+    }${hasNull ? '| null' : ''}`;
+    }
+    else if (isMapType(type)) {
+        return `{ [index:string]:${generateAvroWrapperFieldType(type.values, context)} }`;
+    }
+    else if (typeof type === 'string') {
+        return generateAvroWrapperFieldType(resolveReference(type, context), context);
+    }
+    else {
+        throw new TypeError(`not ready for type ${type}`);
+    }
+}
+function generateFieldDeclaration$1(field, context) {
+    return `${field.name}: ${generateAvroWrapperFieldType(field.type, context)}`;
+}
+function generateAvroWrapper(type, context) {
+    return `export interface ${avroWrapperName(type)} {
+    ${type.fields.map((field) => generateFieldDeclaration$1(field, context)).join('\n')}
   }`;
 }
 
@@ -521,7 +596,7 @@ function generateAssignmentValue$1(type, context, inputVar) {
     }
     else if (isMapType(type)) {
         const mapParsingStatements = `const keys = Object.keys(${inputVar});
-    const output: any = {};
+    const output: ${generateAvroWrapperFieldType(type, context)} = {};
     for(let i = 0; i < keys.length; i +=1 ) {
       const mapKey = keys[i];
       const mapValue = ${inputVar}[mapKey];
@@ -541,7 +616,7 @@ function generateFieldAssginment(field, context) {
     return `${field.name}: ${generateAssignmentValue$1(field.type, context, `input.${field.name}`)}`;
 }
 function generateSerialize(type, context) {
-    return `public static serialize(input: ${className(type)}): object {
+    return `public static serialize(input: ${className(type)}): ${avroWrapperName(type)} {
     return {
       ${type.fields.map((field) => generateFieldAssginment(field, context))}
     }
@@ -585,10 +660,12 @@ function generateContent(recordTypes, enumTypes, context) {
     const sortedRecords = recordTypes.sort(alphaComparator);
     const enums = sortedEnums.map((t) => generateEnumType(t, context));
     const interfaces = sortedRecords.map((t) => generateInterface(t, context));
+    const avroWrappers = sortedRecords.map((t) => generateAvroWrapper(t, context));
     const classes = sortedRecords.map((t) => generateClass(t, context));
     return []
         .concat(enums)
         .concat(interfaces)
+        .concat(avroWrappers)
         .concat(classes)
         .join('\n');
 }

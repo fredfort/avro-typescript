@@ -4,6 +4,13 @@ export interface IRecordWithArrays {
   simpleArray: string[];
   multiTypeArray: (string | number)[];
 }
+export interface IRecordWithArraysAvroWrapper {
+  simpleArray: string[];
+  multiTypeArray: ({
+    string?: string;
+    int?: number;
+  })[];
+}
 export class RecordWithArrays implements IRecordWithArrays {
   public simpleArray: string[];
   public multiTypeArray: (string | number)[];
@@ -11,10 +18,10 @@ export class RecordWithArrays implements IRecordWithArrays {
     this.simpleArray = input.simpleArray;
     this.multiTypeArray = input.multiTypeArray;
   }
-  public static deserialize(input: any): RecordWithArrays {
+  public static deserialize(input: IRecordWithArraysAvroWrapper): RecordWithArrays {
     return new RecordWithArrays({
-      simpleArray: input.simpleArray.map((e: any) => e),
-      multiTypeArray: input.multiTypeArray.map((e: any) => {
+      simpleArray: input.simpleArray.map((e) => e),
+      multiTypeArray: input.multiTypeArray.map((e) => {
         return (() => {
           if (e['string'] !== undefined) {
             return e['string'];
@@ -26,7 +33,7 @@ export class RecordWithArrays implements IRecordWithArrays {
       }),
     });
   }
-  public static serialize(input: RecordWithArrays): object {
+  public static serialize(input: RecordWithArrays): IRecordWithArraysAvroWrapper {
     return {
       simpleArray: input.simpleArray.map((e) => e),
       multiTypeArray: input.multiTypeArray.map((e) => {
@@ -54,6 +61,10 @@ export interface IDistance {
   amount: number;
   unit: UnitOfDistance;
 }
+export interface IDistanceAvroWrapper {
+  amount: number;
+  unit: UnitOfDistance;
+}
 export class Distance implements IDistance {
   public amount: number;
   public unit: UnitOfDistance;
@@ -61,13 +72,13 @@ export class Distance implements IDistance {
     this.amount = input.amount;
     this.unit = input.unit;
   }
-  public static deserialize(input: any): Distance {
+  public static deserialize(input: IDistanceAvroWrapper): Distance {
     return new Distance({
       amount: input.amount,
       unit: input.unit,
     });
   }
-  public static serialize(input: Distance): object {
+  public static serialize(input: Distance): IDistanceAvroWrapper {
     return {
       amount: input.amount,
       unit: input.unit,
@@ -80,12 +91,15 @@ export class Distance implements IDistance {
 export interface IMapValue {
   value: { [index: string]: number };
 }
+export interface IMapValueAvroWrapper {
+  value: { [index: string]: number };
+}
 export class MapValue implements IMapValue {
   public value: { [index: string]: number };
   constructor(input: Partial<IMapValue>) {
     this.value = input.value;
   }
-  public static deserialize(input: any): MapValue {
+  public static deserialize(input: IMapValueAvroWrapper): MapValue {
     return new MapValue({
       value: (() => {
         const keys = Object.keys(input.value);
@@ -99,11 +113,11 @@ export class MapValue implements IMapValue {
       })(),
     });
   }
-  public static serialize(input: MapValue): object {
+  public static serialize(input: MapValue): IMapValueAvroWrapper {
     return {
       value: (() => {
         const keys = Object.keys(input.value);
-        const output: any = {};
+        const output: { [index: string]: number } = {};
         for (let i = 0; i < keys.length; i += 1) {
           const mapKey = keys[i];
           const mapValue = input.value[mapKey];
@@ -129,6 +143,18 @@ export interface IPerson {
   fullname: IFullName;
   addresses: IAddress[];
 }
+export interface IAddressAvroWrapper {
+  city: string;
+  country: string;
+}
+export interface IFullNameAvroWrapper {
+  firstName: string;
+  lastName: string;
+}
+export interface IPersonAvroWrapper {
+  fullname: IFullNameAvroWrapper;
+  addresses: IAddressAvroWrapper[];
+}
 export class Address implements IAddress {
   public city: string;
   public country: string;
@@ -136,13 +162,13 @@ export class Address implements IAddress {
     this.city = input.city;
     this.country = input.country;
   }
-  public static deserialize(input: any): Address {
+  public static deserialize(input: IAddressAvroWrapper): Address {
     return new Address({
       city: input.city,
       country: input.country,
     });
   }
-  public static serialize(input: Address): object {
+  public static serialize(input: Address): IAddressAvroWrapper {
     return {
       city: input.city,
       country: input.country,
@@ -156,13 +182,13 @@ export class FullName implements IFullName {
     this.firstName = input.firstName;
     this.lastName = input.lastName;
   }
-  public static deserialize(input: any): FullName {
+  public static deserialize(input: IFullNameAvroWrapper): FullName {
     return new FullName({
       firstName: input.firstName,
       lastName: input.lastName,
     });
   }
-  public static serialize(input: FullName): object {
+  public static serialize(input: FullName): IFullNameAvroWrapper {
     return {
       firstName: input.firstName,
       lastName: input.lastName,
@@ -176,13 +202,13 @@ export class Person implements IPerson {
     this.fullname = input.fullname;
     this.addresses = input.addresses;
   }
-  public static deserialize(input: any): Person {
+  public static deserialize(input: IPersonAvroWrapper): Person {
     return new Person({
       fullname: FullName.deserialize(input.fullname),
-      addresses: input.addresses.map((e: any) => Address.deserialize(e)),
+      addresses: input.addresses.map((e) => Address.deserialize(e)),
     });
   }
-  public static serialize(input: Person): object {
+  public static serialize(input: Person): IPersonAvroWrapper {
     return {
       fullname: FullName.serialize(input.fullname),
       addresses: input.addresses.map((e) => Address.serialize(e)),
@@ -203,6 +229,27 @@ export interface IHuman {
   firstname: string;
   lastname: string;
 }
+export interface IDogAvroWrapper {
+  name: string;
+  owner: {
+    'com.animals.Human'?: IHumanAvroWrapper;
+  } | null;
+  extra: ({
+    'com.animals.Human'?: IHumanAvroWrapper;
+    'com.animals.Dog'?: IDogAvroWrapper;
+  })[];
+  friend: {
+    'com.animals.Dog'?: IDogAvroWrapper;
+  } | null;
+  other: {
+    'com.animals.Dog'?: IDogAvroWrapper;
+    'com.animals.Human'?: IHumanAvroWrapper;
+  } | null;
+}
+export interface IHumanAvroWrapper {
+  firstname: string;
+  lastname: string;
+}
 export class Dog implements IDog {
   public name: string;
   public owner: null | IHuman;
@@ -216,7 +263,7 @@ export class Dog implements IDog {
     this.friend = input.friend;
     this.other = input.other;
   }
-  public static deserialize(input: any): Dog {
+  public static deserialize(input: IDogAvroWrapper): Dog {
     return new Dog({
       name: input.name,
       owner: (() => {
@@ -227,7 +274,7 @@ export class Dog implements IDog {
         }
         throw new TypeError('Unresolvable type');
       })(),
-      extra: input.extra.map((e: any) => {
+      extra: input.extra.map((e) => {
         return (() => {
           if (e['com.animals.Human'] !== undefined) {
             return Human.deserialize(e['com.animals.Human']);
@@ -257,7 +304,7 @@ export class Dog implements IDog {
       })(),
     });
   }
-  public static serialize(input: Dog): object {
+  public static serialize(input: Dog): IDogAvroWrapper {
     return {
       name: input.name,
       owner: (() => {
@@ -306,13 +353,13 @@ export class Human implements IHuman {
     this.firstname = input.firstname;
     this.lastname = input.lastname;
   }
-  public static deserialize(input: any): Human {
+  public static deserialize(input: IHumanAvroWrapper): Human {
     return new Human({
       firstname: input.firstname,
       lastname: input.lastname,
     });
   }
-  public static serialize(input: Human): object {
+  public static serialize(input: Human): IHumanAvroWrapper {
     return {
       firstname: input.firstname,
       lastname: input.lastname,
@@ -329,17 +376,30 @@ export interface ITree {
   left: null | ITree | ILeaf;
   right: null | ITree | ILeaf;
 }
+export interface ILeafAvroWrapper {
+  value: string;
+}
+export interface ITreeAvroWrapper {
+  left: {
+    'com.company.Tree'?: ITreeAvroWrapper;
+    'com.company.Leaf'?: ILeafAvroWrapper;
+  } | null;
+  right: {
+    'com.company.Tree'?: ITreeAvroWrapper;
+    'com.company.Leaf'?: ILeafAvroWrapper;
+  } | null;
+}
 export class Leaf implements ILeaf {
   public value: string;
   constructor(input: Partial<ILeaf>) {
     this.value = input.value;
   }
-  public static deserialize(input: any): Leaf {
+  public static deserialize(input: ILeafAvroWrapper): Leaf {
     return new Leaf({
       value: input.value,
     });
   }
-  public static serialize(input: Leaf): object {
+  public static serialize(input: Leaf): ILeafAvroWrapper {
     return {
       value: input.value,
     };
@@ -352,7 +412,7 @@ export class Tree implements ITree {
     this.left = input.left;
     this.right = input.right;
   }
-  public static deserialize(input: any): Tree {
+  public static deserialize(input: ITreeAvroWrapper): Tree {
     return new Tree({
       left: (() => {
         if (input.left === null) {
@@ -376,7 +436,7 @@ export class Tree implements ITree {
       })(),
     });
   }
-  public static serialize(input: Tree): object {
+  public static serialize(input: Tree): ITreeAvroWrapper {
     return {
       left: (() => {
         if (input.left === null) {
@@ -413,6 +473,15 @@ export interface IRecordWithPrimitives {
   int: number;
   other: null;
 }
+export interface IRecordWithPrimitivesAvroWrapper {
+  bool: boolean;
+  str: string;
+  long: number;
+  float: number;
+  double: number;
+  int: number;
+  other: null;
+}
 export class RecordWithPrimitives implements IRecordWithPrimitives {
   public bool: boolean;
   public str: string;
@@ -430,7 +499,7 @@ export class RecordWithPrimitives implements IRecordWithPrimitives {
     this.int = input.int;
     this.other = input.other;
   }
-  public static deserialize(input: any): RecordWithPrimitives {
+  public static deserialize(input: IRecordWithPrimitivesAvroWrapper): RecordWithPrimitives {
     return new RecordWithPrimitives({
       bool: input.bool,
       str: input.str,
@@ -441,7 +510,7 @@ export class RecordWithPrimitives implements IRecordWithPrimitives {
       other: input.other,
     });
   }
-  public static serialize(input: RecordWithPrimitives): object {
+  public static serialize(input: RecordWithPrimitives): IRecordWithPrimitivesAvroWrapper {
     return {
       bool: input.bool,
       str: input.str,

@@ -7,6 +7,7 @@ import {
   qualifiedName,
   resolveReference,
   qClassName,
+  avroWrapperName,
 } from './utils'
 import { generateFieldType } from './generateFieldType'
 import { GeneratorContext } from './typings'
@@ -30,11 +31,11 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
     return generateAssignmentValue(resolveReference(type, context), context, inputVar)
   } else if (isArrayType(type)) {
     if (isUnion(type.items) && type.items.length > 1) {
-      return `${inputVar}.map((e: any) => {
+      return `${inputVar}.map((e) => {
         return ${generateAssignmentValue(type.items, context, 'e')}
       })`
     }
-    return `${inputVar}.map((e: any) => ${generateAssignmentValue(type.items, context, 'e')})`
+    return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`
   } else if (isUnion(type)) {
     if (type.length === 1) {
       return generateAssignmentValue(type[0], context, inputVar)
@@ -75,7 +76,7 @@ function generateDeserializeFieldAssignment(field: Field, context: GeneratorCont
 }
 
 export function generateDeserialize(type: RecordType, context: GeneratorContext) {
-  return `public static deserialize(input: any): ${className(type)} {
+  return `public static deserialize(input: ${avroWrapperName(type)}): ${className(type)} {
     return new ${className(type)}({
       ${type.fields.map((f) => generateDeserializeFieldAssignment(f, context)).join('\n')}
     })
