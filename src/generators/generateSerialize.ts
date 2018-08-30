@@ -96,8 +96,9 @@ function generateAssignmentValue(
       values = [`return null`].concat(values)
     }
     let branches = conditions.map((c, i) => [c, values[i]] as [string, string])
-    const elseBranch = `throw new TypeError('Unserializable type!')`
-    return asSelfExecuting(joinConditional(branches, elseBranch))
+    const block = `${joinConditional(branches)}
+    throw new TypeError('Unserializable type!')`
+    return asSelfExecuting(block)
   } else if (isMapType(type)) {
     const mapParsingStatements = `const keys = Object.keys(${inputVar});
     const output: any = {};

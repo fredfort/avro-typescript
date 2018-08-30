@@ -9,10 +9,12 @@ import {
   Address,
   Human,
   Dog,
+  Tree,
+  Leaf,
 } from './classModels/classModels'
 
 describe('Classes', () => {
-  it('Should serialize/deserialize primitive types correctly', () => {
+  it('Should serialize/deserialize primitive types', () => {
     const input = {
       bool: true,
       double: 1.2,
@@ -27,7 +29,7 @@ describe('Classes', () => {
     expect(RecordWithPrimitives.serialize(parsed)).to.deep.equal(input)
   })
 
-  it('Should serialize/deserialize array types correctly', () => {
+  it('Should serialize/deserialize array types', () => {
     const input = {
       multiTypeArray: [{ int: 5 }, { string: 'hello' }, { int: 4 }],
       simpleArray: ['he', 'llo', 'world'],
@@ -60,7 +62,7 @@ describe('Classes', () => {
     expect(MapValue.serialize(parsed)).to.deep.equal(input)
   })
 
-  it('Should serialize/deserialize  multiple types', () => {
+  it('Should serialize/deserialize multiple types', () => {
     const input = {
       fullname: {
         firstName: 'John',
@@ -103,5 +105,37 @@ describe('Classes', () => {
     expect(parsed.friend).to.be.eq(null)
 
     expect(Dog.serialize(parsed)).to.deep.equal(input)
+  })
+
+  it('Should serialize/deserialize nested union types', () => {
+    const input = {
+      left: {
+        'com.company.Tree': {
+          left: {
+            'com.company.Leaf': {
+              value: 'leaf1',
+            },
+          },
+          right: {
+            'com.company.Tree': {
+              left: null,
+              right: null,
+            },
+          },
+        },
+      },
+      right: {
+        'com.company.Leaf': {
+          value: 'leaf2',
+        },
+      },
+    }
+    const parsed = Tree.deserialize(input)
+    expect(parsed).to.be.instanceOf(Tree)
+    expect(parsed.left).to.be.instanceOf(Tree)
+    expect((parsed.left as Tree).left).to.be.instanceOf(Leaf)
+    expect((parsed.left as Tree).right).to.be.instanceOf(Tree)
+    expect(parsed.right).to.be.instanceOf(Leaf)
+    expect(Tree.serialize(parsed)).to.be.deep.equal(input)
   })
 })

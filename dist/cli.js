@@ -155,14 +155,13 @@ function asSelfExecuting(code) {
     ${code}
   })()`;
 }
-function joinConditional(branches, elseBranch) {
+function joinConditional(branches) {
     if (branches.length === 0) {
         return '';
     }
     const [[firstCond, firstBranch], ...restOfBranches] = branches;
     return `if(${firstCond}){\n${firstBranch}\n}
-  ${restOfBranches.map(([cond, branch]) => `else if(${cond}){\n${branch}\n}`).join('\n')}
-  ${elseBranch ? `else {\n${elseBranch}\n}` : ''}`;
+  ${restOfBranches.map(([cond, branch]) => `else if(${cond}){\n${branch}\n}`).join('\n')}`;
 }
 function getTypeName(type, fqns) {
     if (isPrimitive(type)) {
@@ -252,11 +251,11 @@ function generateAssignmentValue(type, fqns, mapping, inputVar) {
     }
     else if (isArrayType(type)) {
         if (isUnion(type.items) && type.items.length > 1) {
-            return `${inputVar}.map((e) => {
+            return `${inputVar}.map((e: any) => {
         return ${generateAssignmentValue(type.items, fqns, mapping, 'e')}
       })`;
         }
-        return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, fqns, mapping, 'e')})`;
+        return `${inputVar}.map((e: any) => ${generateAssignmentValue(type.items, fqns, mapping, 'e')})`;
     }
     else if (isUnion(type)) {
         if (type.length === 1) {
@@ -272,10 +271,10 @@ function generateAssignmentValue(type, fqns, mapping, inputVar) {
             conditions = [`${inputVar} === null`].concat(conditions);
             branches = [`return null`].concat(branches);
         }
-        const elseBranch = `throw new TypeError('Unresolvable type');`;
         const branchesAsTuples = conditions.map((c, i) => [c, branches[i]]);
-        const ifElseStatement = joinConditional(branchesAsTuples, elseBranch);
-        return asSelfExecuting(ifElseStatement);
+        const block = `${joinConditional(branchesAsTuples)}
+    throw new TypeError('Unresolvable type');`;
+        return asSelfExecuting(`${block}`);
     }
     else if (isMapType(type)) {
         const mapParsingStatements = `const keys = Object.keys(${inputVar});
@@ -390,8 +389,9 @@ function generateAssignmentValue$1(type, fqns, mapping, inputVar) {
             values = [`return null`].concat(values);
         }
         let branches = conditions.map((c, i) => [c, values[i]]);
-        const elseBranch = `throw new TypeError('Unserializable type!')`;
-        return asSelfExecuting(joinConditional(branches, elseBranch));
+        const block = `${joinConditional(branches)}
+    throw new TypeError('Unserializable type!')`;
+        return asSelfExecuting(block);
     }
     else if (isMapType(type)) {
         const mapParsingStatements = `const keys = Object.keys(${inputVar});
