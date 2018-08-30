@@ -1,13 +1,19 @@
 import { RecordType, Field, isPrimitive, isEnumType, isRecordType, isArrayType, isUnion, isMapType } from '../model'
-import { asSelfExecuting, joinConditional, className, qualifiedName, getTypeName, resolveReference } from './utils'
+import {
+  asSelfExecuting,
+  joinConditional,
+  qualifiedName,
+  getTypeName,
+  resolveReference,
+  qClassName,
+  className,
+} from './utils'
 import { GeneratorContext } from './typings'
 
 function getKey(t: any, context: GeneratorContext) {
   if (!isPrimitive(t) && typeof t === 'string') {
     return getKey(resolveReference(t, context), context)
-  } else if (isRecordType(t)) {
-    return `[${className(t)}.FQN]`
-  } else if (isEnumType(t)) {
+  } else if (isEnumType(t) || isRecordType(t)) {
     return `'${qualifiedName(t)}'`
   } else {
     return `'${getTypeName(t, context)}'`
@@ -33,7 +39,7 @@ function generateCondition(type: any, context: GeneratorContext, inputVar: strin
   } else if (isArrayType(type)) {
     return `Array.isArray(${inputVar})`
   } else if (isRecordType(type)) {
-    return `${inputVar} instanceof ${className(type)}`
+    return `${inputVar} instanceof ${qClassName(type, context)}`
   } else if (isEnumType(type)) {
     return `typeof ${inputVar} === 'string' && [${type.symbols
       .map((s) => `'${s}'`)
@@ -60,7 +66,7 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
   if (isPrimitive(type) || isEnumType(type)) {
     return inputVar
   } else if (isRecordType(type)) {
-    return `${className(type)}.serialize(${inputVar})`
+    return `${qClassName(type, context)}.serialize(${inputVar})`
   } else if (isArrayType(type)) {
     if (isUnion(type.items) && type.items.length > 1) {
       return `${inputVar}.map((e) => {
@@ -106,8 +112,7 @@ function generateFieldAssginment(field: Field, context: GeneratorContext): strin
 }
 
 export function generateSerialize(type: RecordType, context: GeneratorContext): string {
-  const name = type.name
-  return `public static serialize(input: ${name}): object {
+  return `public static serialize(input: ${className(type)}): object {
     return {
       ${type.fields.map((field) => generateFieldAssginment(field, context))}
     }

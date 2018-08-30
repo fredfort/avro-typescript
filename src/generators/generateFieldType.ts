@@ -1,4 +1,4 @@
-import { interfaceName, resolveReference } from './utils'
+import { resolveReference, qInterfaceName, qEnumName } from './utils'
 import { isRecordType, isPrimitive, isEnumType, isArrayType, isMapType } from '../model'
 import { GeneratorContext } from './typings'
 
@@ -30,9 +30,9 @@ export function generateFieldType(type: any, context: GeneratorContext): string 
   } else if (type instanceof Array) {
     return type.map((tpe) => generateFieldType(tpe, context)).join(' | ')
   } else if (isRecordType(type)) {
-    return interfaceName(type)
+    return qInterfaceName(type, context)
   } else if (isEnumType(type)) {
-    return type.name
+    return qEnumName(type, context)
   } else if (isArrayType(type)) {
     if ([].concat(type.items).length === 1) {
       return `${generateFieldType(type.items, context)}[]`

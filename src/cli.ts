@@ -38,13 +38,14 @@ function collectAllFiles({ file }: Args): string[] {
 }
 
 function generateContent(schema: RecordType, args: Args): string {
+  const options = {
+    convertEnumToType: Boolean(args.convertEnumToType),
+    removeNameSpace: Boolean(args.removeNameSpace),
+  }
   if (Boolean(args.customMode)) {
-    return generateAll(schema)
+    return generateAll(schema, options)
   } else {
-    return avroToTypeScript(schema, {
-      convertEnumToType: Boolean(args.convertEnumToType),
-      removeNameSpace: Boolean(args.removeNameSpace),
-    })
+    return avroToTypeScript(schema, options)
   }
 }
 

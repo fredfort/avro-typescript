@@ -1,5 +1,14 @@
-import { RecordType, isPrimitive, isArrayType, isMapType, isEnumType, isRecordType, HasName } from '../model'
+import { RecordType, isPrimitive, isArrayType, isMapType, isEnumType, isRecordType, HasName, EnumType } from '../model'
 import { GeneratorContext } from './typings'
+
+export function alphaComparator(a: HasName, b: HasName) {
+  if (a.name < b.name) {
+    return -1
+  } else if (a.name > b.name) {
+    return 1
+  }
+  return 0
+}
 
 export function interfaceName(type: RecordType) {
   return `I${type.name}`
@@ -7,6 +16,30 @@ export function interfaceName(type: RecordType) {
 
 export function className(type: RecordType) {
   return type.name
+}
+
+export function enumName(type: EnumType) {
+  return type.name
+}
+
+function qualifiedNameFor<T extends HasName>(type: T, transform: (T) => string, context: GeneratorContext) {
+  const baseName = transform(type)
+  if (context.options.removeNameSpace) {
+    return baseName
+  }
+  return type.namespace ? `${type.namespace}.${baseName}` : `${baseName}`
+}
+
+export function qInterfaceName(type: RecordType, context: GeneratorContext) {
+  return qualifiedNameFor(type, interfaceName, context)
+}
+
+export function qClassName(type: RecordType, context: GeneratorContext) {
+  return qualifiedNameFor(type, className, context)
+}
+
+export function qEnumName(type: EnumType, context: GeneratorContext) {
+  return qualifiedNameFor(type, enumName, context)
 }
 
 export function qualifiedName(type: HasName) {
@@ -43,4 +76,22 @@ export function getTypeName(type: any, context: GeneratorContext): string {
   } else if (typeof type === 'string') {
     return context.fqnResolver.get(type)
   }
+}
+
+export function groupByNamespace<T extends HasName>(types: T[]): Map<string, T[]> {
+  const mapping = new Map<string, T[]>()
+  types.forEach((type) => {
+    if (!Array.isArray(mapping.get(type.namespace))) {
+      mapping.set(type.namespace, [])
+    }
+    const array = mapping.get(type.namespace)
+    array.push(type)
+  })
+  return mapping
+}
+
+export function collectNamespaces(types: HasName[]): Set<string> {
+  const ns = new Set<string>()
+  types.forEach(({ namespace }) => ns.add(namespace))
+  return ns
 }

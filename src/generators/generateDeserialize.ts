@@ -1,14 +1,20 @@
 import { isRecordType, isArrayType, isMapType, Field, isEnumType, isUnion, isPrimitive, RecordType } from '../model'
-import { getTypeName, asSelfExecuting, joinConditional, className, qualifiedName, resolveReference } from './utils'
+import {
+  getTypeName,
+  asSelfExecuting,
+  joinConditional,
+  className,
+  qualifiedName,
+  resolveReference,
+  qClassName,
+} from './utils'
 import { generateFieldType } from './generateFieldType'
 import { GeneratorContext } from './typings'
 
 function getKey(t: any, context: GeneratorContext) {
   if (!isPrimitive(t) && typeof t === 'string') {
     return getKey(resolveReference(t, context), context)
-  } else if (isRecordType(t)) {
-    return `${className(t)}.FQN`
-  } else if (isEnumType(t)) {
+  } else if (isEnumType(t) || isRecordType(t)) {
     return `'${qualifiedName(t)}'`
   } else {
     return `'${getTypeName(t, context)}'`
@@ -19,7 +25,7 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
   if ((typeof type === 'string' && isPrimitive(type)) || isEnumType(type)) {
     return `${inputVar}`
   } else if (isRecordType(type)) {
-    return `${className(type)}.deserialize(${inputVar})`
+    return `${qClassName(type, context)}.deserialize(${inputVar})`
   } else if (typeof type === 'string') {
     return generateAssignmentValue(resolveReference(type, context), context, inputVar)
   } else if (isArrayType(type)) {

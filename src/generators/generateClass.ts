@@ -1,5 +1,5 @@
 import { RecordType, Field } from '../model'
-import { className, interfaceName, qualifiedName } from './utils'
+import { className, interfaceName } from './utils'
 import { generateDeserialize } from './generateDeserialize'
 import { generateSerialize } from './generateSerialize'
 import { generateFieldType } from './generateFieldType'
@@ -16,7 +16,6 @@ export function generateClass(type: RecordType, context: GeneratorContext): stri
       : type.fields.map((field) => `this.${field.name} = input.${field.name};`).join('\n')
 
   return `export class ${className(type)} implements ${interfaceName(type)} {
-    public static FQN = '${qualifiedName(type)}'
     ${type.fields.map((f) => generateClassFieldDeclaration(f, context)).join('\n')}
     constructor(input: Partial<${interfaceName(type)}>) {
       ${assignments}
