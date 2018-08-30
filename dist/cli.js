@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
 var fs = require('fs');
 var path = require('path');
+var prettier = _interopDefault(require('prettier'));
 
 const PRIMITIVE_TYPES = ['string', 'boolean', 'long', 'int', 'double', 'float', 'bytes', 'null'];
 function isRecordType(type) {
@@ -538,8 +541,7 @@ function generateFieldAssginment(field, context) {
     return `${field.name}: ${generateAssignmentValue$1(field.type, context, `input.${field.name}`)}`;
 }
 function generateSerialize(type, context) {
-    const name = type.name;
-    return `public static serialize(input: ${name}): object {
+    return `public static serialize(input: ${className(type)}): object {
     return {
       ${type.fields.map((field) => generateFieldAssginment(field, context))}
     }
@@ -547,7 +549,7 @@ function generateSerialize(type, context) {
 }
 
 function generateClassFieldDeclaration(field, context) {
-    return `public readonly ${field.name}: ${generateFieldType(field.type, context)}`;
+    return `public ${field.name}: ${generateFieldType(field.type, context)}`;
 }
 function generateClass(type, context) {
     const assignments = type.fields.length === 0
@@ -698,12 +700,26 @@ function generateContent$1(schema, args) {
     }
 }
 function convertAndSendToStdout(files, args) {
-    files.forEach((f) => {
+    const source = files
+        .map((f) => {
         const content = fs.readFileSync(f, 'UTF8');
         const schema = JSON.parse(content);
         const tsContent = generateContent$1(schema, args);
-        process.stdout.write(`// Generated from ${path.basename(f)}\n\n${tsContent}\n`);
+        return `// Generated from ${path.basename(f)}\n\n${tsContent}\n`;
+    })
+        .join('\n');
+    const formattedSource = prettier.format(source, {
+        printWidth: 120,
+        semi: true,
+        parser: 'typescript',
+        tabWidth: 2,
+        useTabs: false,
+        singleQuote: true,
+        trailingComma: 'es5',
+        bracketSpacing: true,
+        arrowParens: 'always',
     });
+    process.stdout.write(formattedSource);
 }
 const [, , ...valuableArgs] = process.argv;
 const parsedArgs = minimist(valuableArgs, {

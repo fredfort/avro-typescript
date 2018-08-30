@@ -90,10 +90,10 @@ describe('Classes', () => {
     }
     const input = {
       name: 'Dog1',
-      extra: [{ [Human.FQN]: human1 }],
-      owner: { [Human.FQN]: human2 },
+      extra: [{ 'com.animals.Human': human1 }],
+      owner: { 'com.animals.Human': human2 },
       friend: null,
-      other: { [Human.FQN]: human1 },
+      other: { 'com.animals.Human': human1 },
     }
 
     const parsed = Dog.deserialize(input)

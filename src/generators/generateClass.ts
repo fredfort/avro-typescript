@@ -6,7 +6,7 @@ import { generateFieldType } from './generateFieldType'
 import { GeneratorContext } from './typings'
 
 function generateClassFieldDeclaration(field: Field, context: GeneratorContext): string {
-  return `public readonly ${field.name}: ${generateFieldType(field.type, context)}`
+  return `public ${field.name}: ${generateFieldType(field.type, context)}`
 }
 
 export function generateClass(type: RecordType, context: GeneratorContext): string {

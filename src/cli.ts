@@ -2,6 +2,7 @@ import { readFileSync, lstatSync, existsSync, readdirSync } from 'fs'
 import { resolve, extname, join, basename } from 'path'
 import { avroToTypeScript, RecordType } from './index'
 import { generateAll } from './generators/generateAll'
+import prettier from 'prettier'
 const minimist = require('minimist')
 
 interface Args {
@@ -50,12 +51,26 @@ function generateContent(schema: RecordType, args: Args): string {
 }
 
 function convertAndSendToStdout(files: string[], args: Args) {
-  files.forEach((f) => {
-    const content = readFileSync(f, 'UTF8')
-    const schema: RecordType = JSON.parse(content)
-    const tsContent = generateContent(schema, args)
-    process.stdout.write(`// Generated from ${basename(f)}\n\n${tsContent}\n`)
+  const source = files
+    .map((f) => {
+      const content = readFileSync(f, 'UTF8')
+      const schema: RecordType = JSON.parse(content)
+      const tsContent = generateContent(schema, args)
+      return `// Generated from ${basename(f)}\n\n${tsContent}\n`
+    })
+    .join('\n')
+  const formattedSource = prettier.format(source, {
+    printWidth: 120,
+    semi: true,
+    parser: 'typescript',
+    tabWidth: 2,
+    useTabs: false,
+    singleQuote: true,
+    trailingComma: 'es5',
+    bracketSpacing: true,
+    arrowParens: 'always',
   })
+  process.stdout.write(formattedSource)
 }
 
 const [, , ...valuableArgs] = process.argv
