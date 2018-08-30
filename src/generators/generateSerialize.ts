@@ -7,8 +7,10 @@ import {
   resolveReference,
   qClassName,
   className,
+  avroWrapperName,
 } from './utils'
 import { GeneratorContext } from './typings'
+import { generateAvroWrapperFieldType } from './generateAvroWrapper'
 
 function getKey(t: any, context: GeneratorContext) {
   if (!isPrimitive(t) && typeof t === 'string') {
@@ -92,7 +94,7 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
     return asSelfExecuting(block)
   } else if (isMapType(type)) {
     const mapParsingStatements = `const keys = Object.keys(${inputVar});
-    const output: any = {};
+    const output: ${generateAvroWrapperFieldType(type, context)} = {};
     for(let i = 0; i < keys.length; i +=1 ) {
       const mapKey = keys[i];
       const mapValue = ${inputVar}[mapKey];
@@ -112,7 +114,7 @@ function generateFieldAssginment(field: Field, context: GeneratorContext): strin
 }
 
 export function generateSerialize(type: RecordType, context: GeneratorContext): string {
-  return `public static serialize(input: ${className(type)}): object {
+  return `public static serialize(input: ${className(type)}): ${avroWrapperName(type)} {
     return {
       ${type.fields.map((field) => generateFieldAssginment(field, context))}
     }

@@ -14,6 +14,10 @@ export function interfaceName(type: RecordType) {
   return `I${type.name}`
 }
 
+export function avroWrapperName(type: RecordType) {
+  return `I${type.name}AvroWrapper`
+}
+
 export function className(type: RecordType) {
   return type.name
 }
@@ -23,11 +27,10 @@ export function enumName(type: EnumType) {
 }
 
 function qualifiedNameFor<T extends HasName>(type: T, transform: (T) => string, context: GeneratorContext) {
-  const baseName = transform(type)
   if (context.options.removeNameSpace) {
-    return baseName
+    return transform(type)
   }
-  return type.namespace ? `${type.namespace}.${baseName}` : `${baseName}`
+  return qualifiedName(type, transform)
 }
 
 export function qInterfaceName(type: RecordType, context: GeneratorContext) {
@@ -42,8 +45,12 @@ export function qEnumName(type: EnumType, context: GeneratorContext) {
   return qualifiedNameFor(type, enumName, context)
 }
 
-export function qualifiedName(type: HasName) {
-  return type.namespace ? `${type.namespace}.${type.name}` : type.name
+export function qAvroWrapperName(type: RecordType, context: GeneratorContext) {
+  return qualifiedNameFor(type, avroWrapperName, context)
+}
+
+export function qualifiedName(type: HasName, transform: (e: HasName) => string = (e) => e.name) {
+  return type.namespace ? `${type.namespace}.${transform(type)}` : transform(type)
 }
 
 export function resolveReference(ref: string, context: GeneratorContext): HasName {

@@ -11,11 +11,20 @@ import {
   Dog,
   Tree,
   Leaf,
+  UnitOfDistance,
+  IPersonAvroWrapper,
+  IMapValueAvroWrapper,
+  IDistanceAvroWrapper,
+  IRecordWithArraysAvroWrapper,
+  IRecordWithPrimitivesAvroWrapper,
+  IHumanAvroWrapper,
+  IDogAvroWrapper,
+  ITreeAvroWrapper,
 } from './classModels/classModels'
 
 describe('Classes', () => {
   it('Should serialize/deserialize primitive types', () => {
-    const input = {
+    const input: IRecordWithPrimitivesAvroWrapper = {
       bool: true,
       double: 1.2,
       float: 3.4,
@@ -30,7 +39,7 @@ describe('Classes', () => {
   })
 
   it('Should serialize/deserialize array types', () => {
-    const input = {
+    const input: IRecordWithArraysAvroWrapper = {
       multiTypeArray: [{ int: 5 }, { string: 'hello' }, { int: 4 }],
       simpleArray: ['he', 'llo', 'world'],
     }
@@ -41,9 +50,9 @@ describe('Classes', () => {
   })
 
   it('Should serialize/deserialize enum types', () => {
-    const input = {
+    const input: IDistanceAvroWrapper = {
       amount: 1,
-      unit: 'miles',
+      unit: UnitOfDistance.miles,
     }
     const parsed = Distance.deserialize(input)
     expect(parsed).to.be.instanceOf(Distance)
@@ -51,7 +60,7 @@ describe('Classes', () => {
   })
 
   it('Should serialize/deserialize map types', () => {
-    const input = {
+    const input: IMapValueAvroWrapper = {
       value: {
         hi: 1,
         hello: 2,
@@ -63,7 +72,7 @@ describe('Classes', () => {
   })
 
   it('Should serialize/deserialize multiple types', () => {
-    const input = {
+    const input: IPersonAvroWrapper = {
       fullname: {
         firstName: 'John',
         lastName: 'Doe',
@@ -80,15 +89,15 @@ describe('Classes', () => {
   })
 
   it('Should serialize/deserialize namespaced types', () => {
-    const human1 = {
+    const human1: IHumanAvroWrapper = {
       firstname: 'Human1',
       lastname: 'Human1',
     }
-    const human2 = {
+    const human2: IHumanAvroWrapper = {
       firstname: 'Human2',
       lastname: 'Human2',
     }
-    const input = {
+    const input: IDogAvroWrapper = {
       name: 'Dog1',
       extra: [{ 'com.animals.Human': human1 }],
       owner: { 'com.animals.Human': human2 },
@@ -108,7 +117,7 @@ describe('Classes', () => {
   })
 
   it('Should serialize/deserialize nested union types', () => {
-    const input = {
+    const input: ITreeAvroWrapper = {
       left: {
         'com.company.Tree': {
           left: {
