@@ -1,22 +1,23 @@
-import { HasName, RecordType, isRecordType, isUnion, isArrayType, isMapType, isEnumType, EnumType } from '../model'
-import { generateEnumType } from './generateEnum'
-import { generateClass } from './generateClass'
-import { generateInterface } from './generateInterface'
+import {
+  HasName,
+  RecordType,
+  isRecordType,
+  isUnion,
+  isArrayType,
+  isMapType,
+  isEnumType,
+  EnumType,
+  Options,
+} from '../model'
 import { FqnResolver } from './FqnResolver'
 import { addNamespaces } from './addNamespaces'
-import { qualifiedName } from './utils'
+import { qualifiedName, collectNamespaces, groupByNamespace } from './utils'
+import { GeneratorContext } from './typings'
+import { generateContent } from './generateContent'
+import { generateNamespace } from './generateNamespace'
 
 function getNameToTypeMapping(types: HasName[]): Map<string, RecordType> {
   return new Map(types.map((type) => [qualifiedName(type), type] as [string, RecordType]))
-}
-
-function alphaComparator(a: HasName, b: HasName) {
-  if (a.name < b.name) {
-    return -1
-  } else if (a.name > b.name) {
-    return 1
-  }
-  return 0
 }
 
 function getAllRecordTypes(type: any, types: RecordType[]): RecordType[] {
@@ -48,19 +49,27 @@ export function getAllEnumTypes(type: any, types: EnumType[]): EnumType[] {
   return types
 }
 
-export function generateAll(record: RecordType): string {
-  const fqns = new FqnResolver()
-  const type = addNamespaces(record, fqns)
-  const enumTypes = getAllEnumTypes(type, []).sort(alphaComparator)
-  const recordTypes = getAllRecordTypes(type, []).sort(alphaComparator)
-  const mapping = getNameToTypeMapping([].concat(enumTypes, recordTypes))
+export function generateAll(record: RecordType, options: Options): string {
+  const context: GeneratorContext = {
+    options,
+    fqnResolver: new FqnResolver(),
+    nameToTypeMapping: new Map(),
+  }
+  const type = addNamespaces(record, context)
+  const enumTypes = getAllEnumTypes(type, [])
+  const recordTypes = getAllRecordTypes(type, [])
+  const allNamedTypes: HasName[] = [].concat(enumTypes, recordTypes)
+  context.nameToTypeMapping = getNameToTypeMapping(allNamedTypes)
 
-  const enums = enumTypes.map(generateEnumType)
-  const interfaces = recordTypes.map((t) => generateInterface(t, fqns, mapping))
-  const classes = recordTypes.map((t) => generateClass(t, fqns, mapping))
-  return []
-    .concat(enums)
-    .concat(interfaces)
-    .concat(classes)
-    .join('\n')
+  if (options.removeNameSpace) {
+    return generateContent(recordTypes, enumTypes, context)
+  } else {
+    const namespaces = Array.from(collectNamespaces(allNamedTypes))
+    const recordsGrouped = groupByNamespace(recordTypes)
+    const enumsGrouped = groupByNamespace(enumTypes)
+    const namespaceTypes: [string, RecordType[], EnumType[]][] = namespaces.map(
+      (ns) => [ns, recordsGrouped.get(ns) || [], enumsGrouped.get(ns) || []] as [string, RecordType[], EnumType[]],
+    )
+    return namespaceTypes.map(([ns, records, enums]) => generateNamespace(ns, records, enums, context)).join('\n')
+  }
 }

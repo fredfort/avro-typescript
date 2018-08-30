@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
 var fs = require('fs');
 var path = require('path');
+var prettier = _interopDefault(require('prettier'));
 
 const PRIMITIVE_TYPES = ['string', 'boolean', 'long', 'int', 'double', 'float', 'bytes', 'null'];
 function isRecordType(type) {
@@ -133,323 +136,6 @@ function convertFieldDec(field, buffer) {
     return `\t${field.name}${isOptional(field.type) ? '?' : ''}: ${convertType(field.type, buffer)}`;
 }
 
-function generateEnumType(type) {
-    return `export type ${type.name} = ${type.symbols.map((symbol) => `'${symbol}'`).join(' | ')}`;
-}
-
-function interfaceName(type) {
-    return `I${type.name}`;
-}
-function className(type) {
-    return type.name;
-}
-function qualifiedName(type) {
-    return type.namespace ? `${type.namespace}.${type.name}` : type.name;
-}
-function resolveReference(ref, fqns, mapping) {
-    const fqn = fqns.get(ref);
-    return mapping.get(fqn);
-}
-function asSelfExecuting(code) {
-    return `(() => {
-    ${code}
-  })()`;
-}
-function joinConditional(branches, elseBranch) {
-    if (branches.length === 0) {
-        return '';
-    }
-    const [[firstCond, firstBranch], ...restOfBranches] = branches;
-    return `if(${firstCond}){\n${firstBranch}\n}
-  ${restOfBranches.map(([cond, branch]) => `else if(${cond}){\n${branch}\n}`).join('\n')}
-  ${elseBranch ? `else {\n${elseBranch}\n}` : ''}`;
-}
-function getTypeName(type, fqns) {
-    if (isPrimitive(type)) {
-        return type;
-    }
-    else if (isArrayType(type) || isMapType(type)) {
-        return type.type;
-    }
-    else if (isRecordType(type) || isEnumType(type)) {
-        return qualifiedName(type);
-    }
-    else if (typeof type === 'string') {
-        return fqns.get(type);
-    }
-}
-
-function generatePrimitive(avroType) {
-    switch (avroType) {
-        case 'long':
-        case 'int':
-        case 'double':
-        case 'float':
-            return 'number';
-        case 'bytes':
-            return 'Buffer';
-        case 'null':
-            return 'null';
-        case 'boolean':
-            return 'boolean';
-        case 'string':
-            return 'string';
-        default:
-            throw new TypeError(`Unknown primitive type: ${avroType}`);
-    }
-}
-function generateFieldType(type, fqns, mapping) {
-    if (isPrimitive(type)) {
-        return generatePrimitive(type);
-    }
-    else if (typeof type === 'string') {
-        return generateFieldType(resolveReference(type, fqns, mapping), fqns, mapping);
-    }
-    else if (type instanceof Array) {
-        return type.map((tpe) => generateFieldType(tpe, fqns, mapping)).join(' | ');
-    }
-    else if (isRecordType(type)) {
-        return interfaceName(type);
-    }
-    else if (isEnumType(type)) {
-        return type.name;
-    }
-    else if (isArrayType(type)) {
-        if ([].concat(type.items).length === 1) {
-            return `${generateFieldType(type.items, fqns, mapping)}[]`;
-        }
-        return `(${generateFieldType(type.items, fqns, mapping)})[]`;
-    }
-    else if (isMapType(type)) {
-        return `{ [index:string]:${generateFieldType(type.values, fqns, mapping)} }`;
-    }
-    throw new TypeError(`Unknown type ${type}!`);
-}
-
-function getKey(t, fqns, mapping) {
-    if (!isPrimitive(t) && typeof t === 'string') {
-        return getKey(resolveReference(t, fqns, mapping), fqns, mapping);
-    }
-    else if (isRecordType(t)) {
-        return `${className(t)}.FQN`;
-    }
-    else if (isEnumType(t)) {
-        return `'${qualifiedName(t)}'`;
-    }
-    else {
-        return `'${getTypeName(t, fqns)}'`;
-    }
-}
-function generateAssignmentValue(type, fqns, mapping, inputVar) {
-    if ((typeof type === 'string' && isPrimitive(type)) || isEnumType(type)) {
-        return `${inputVar}`;
-    }
-    else if (isRecordType(type)) {
-        return `${className(type)}.deserialize(${inputVar})`;
-    }
-    else if (typeof type === 'string') {
-        return generateAssignmentValue(resolveReference(type, fqns, mapping), fqns, mapping, inputVar);
-    }
-    else if (isArrayType(type)) {
-        if (isUnion(type.items) && type.items.length > 1) {
-            return `${inputVar}.map((e) => {
-        return ${generateAssignmentValue(type.items, fqns, mapping, 'e')}
-      })`;
-        }
-        return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, fqns, mapping, 'e')})`;
-    }
-    else if (isUnion(type)) {
-        if (type.length === 1) {
-            return generateAssignmentValue(type[0], fqns, mapping, inputVar);
-        }
-        const nonNullTypes = type.filter((t) => t !== 'null');
-        const hasNull = nonNullTypes.length !== type.length;
-        let conditions = null;
-        let branches = null;
-        conditions = nonNullTypes.map((t) => `${inputVar}[${getKey(t, fqns, mapping)}] !== undefined`);
-        branches = nonNullTypes.map((t) => `return ${generateAssignmentValue(t, fqns, mapping, `${inputVar}[${getKey(t, fqns, mapping)}]`)}`);
-        if (hasNull) {
-            conditions = [`${inputVar} === null`].concat(conditions);
-            branches = [`return null`].concat(branches);
-        }
-        const elseBranch = `throw new TypeError('Unresolvable type');`;
-        const branchesAsTuples = conditions.map((c, i) => [c, branches[i]]);
-        const ifElseStatement = joinConditional(branchesAsTuples, elseBranch);
-        return asSelfExecuting(ifElseStatement);
-    }
-    else if (isMapType(type)) {
-        const mapParsingStatements = `const keys = Object.keys(${inputVar});
-    const output: ${generateFieldType(type, fqns, mapping)} = {};
-    for(let i = 0; i < keys.length; i +=1 ) {
-      const mapKey = keys[i];
-      const mapValue = ${inputVar}[mapKey];
-      output[mapKey] = ${generateAssignmentValue(type.values, fqns, mapping, 'mapValue')};
-    }
-    return output;`;
-        return asSelfExecuting(mapParsingStatements);
-    }
-    return 'null';
-}
-function generateDeserializeFieldAssignment(field, fqns, mapping) {
-    return `${field.name}: ${generateAssignmentValue(field.type, fqns, mapping, `input.${field.name}`)},`;
-}
-function generateDeserialize(type, fqns, mapping) {
-    return `public static deserialize(input: any): ${className(type)} {
-    return new ${className(type)}({
-      ${type.fields.map((f) => generateDeserializeFieldAssignment(f, fqns, mapping)).join('\n')}
-    })
-  }`;
-}
-
-function getKey$1(t, fqns, mapping) {
-    if (!isPrimitive(t) && typeof t === 'string') {
-        return getKey$1(resolveReference(t, fqns, mapping), fqns, mapping);
-    }
-    else if (isRecordType(t)) {
-        return `[${className(t)}.FQN]`;
-    }
-    else if (isEnumType(t)) {
-        return `'${qualifiedName(t)}'`;
-    }
-    else {
-        return `'${getTypeName(t, fqns)}'`;
-    }
-}
-function generateCondition(type, fqns, mapping, inputVar) {
-    if (isPrimitive(type)) {
-        switch (type) {
-            case 'string':
-                return `typeof ${inputVar} === 'string'`;
-            case 'boolean':
-                return `typeof ${inputVar} === 'boolean'`;
-            case 'int':
-            case 'long':
-                return `typeof ${inputVar} === 'number' && ${inputVar} % 1 === 0`;
-            case 'float':
-            case 'double':
-                return `typeof ${inputVar} === 'number' && ${inputVar} % 1 !== 0`;
-            /* case 'bytes':
-              return `typeof ${inputVar} === Buffer` */
-        }
-    }
-    else if (isArrayType(type)) {
-        return `Array.isArray(${inputVar})`;
-    }
-    else if (isRecordType(type)) {
-        return `${inputVar} instanceof ${className(type)}`;
-    }
-    else if (isEnumType(type)) {
-        return `typeof ${inputVar} === 'string' && [${type.symbols
-            .map((s) => `'${s}'`)
-            .join(',')}].indexOf(${inputVar}) >= 0`;
-    }
-    else if (isMapType(type)) {
-        return `typeof ${inputVar} === 'object'`; // TODO
-    }
-    else if (typeof type === 'string') {
-        return generateCondition(resolveReference(type, fqns, mapping), fqns, mapping, inputVar);
-    }
-    throw new TypeError(`Unknown type ${JSON.stringify(type)}`);
-}
-function generateUnionWrapper(type, fqns, mapping, inputVar) {
-    if (isPrimitive(type) || isArrayType(type) || isMapType(type) || isEnumType(type) || isRecordType(type)) {
-        return `return { ${getKey$1(type, fqns, mapping)}: ${generateAssignmentValue$1(type, fqns, mapping, inputVar)} }`;
-    }
-    else if (typeof type === 'string') {
-        return generateUnionWrapper(resolveReference(type, fqns, mapping), fqns, mapping, inputVar);
-    }
-    else {
-        throw new TypeError(`Unknown type ${type}`);
-    }
-}
-function generateAssignmentValue$1(type, fqns, mapping, inputVar) {
-    if (isPrimitive(type) || isEnumType(type)) {
-        return inputVar;
-    }
-    else if (isRecordType(type)) {
-        return `${className(type)}.serialize(${inputVar})`;
-    }
-    else if (isArrayType(type)) {
-        if (isUnion(type.items) && type.items.length > 1) {
-            return `${inputVar}.map((e) => {
-        return ${generateAssignmentValue$1(type.items, fqns, mapping, 'e')}
-      })`;
-        }
-        return `${inputVar}.map((e) => ${generateAssignmentValue$1(type.items, fqns, mapping, 'e')})`;
-    }
-    else if (isUnion(type)) {
-        if (type.length === 1) {
-            return generateAssignmentValue$1(type[0], fqns, mapping, inputVar);
-        }
-        const hasNull = type.indexOf('null') >= 0;
-        const withoutNull = type.filter((t) => t !== 'null');
-        let conditions = withoutNull.map((t) => generateCondition(t, fqns, mapping, inputVar));
-        let values = withoutNull.map((t) => generateUnionWrapper(t, fqns, mapping, inputVar));
-        if (hasNull) {
-            conditions = [`${inputVar} === null`].concat(conditions);
-            values = [`return null`].concat(values);
-        }
-        let branches = conditions.map((c, i) => [c, values[i]]);
-        const elseBranch = `throw new TypeError('Unserializable type!')`;
-        return asSelfExecuting(joinConditional(branches, elseBranch));
-    }
-    else if (isMapType(type)) {
-        const mapParsingStatements = `const keys = Object.keys(${inputVar});
-    const output: any = {};
-    for(let i = 0; i < keys.length; i +=1 ) {
-      const mapKey = keys[i];
-      const mapValue = ${inputVar}[mapKey];
-      output[mapKey] = ${generateAssignmentValue$1(type.values, fqns, mapping, 'mapValue')};
-    }
-    return output;`;
-        return asSelfExecuting(mapParsingStatements);
-    }
-    else if (typeof type === 'string') {
-        return generateAssignmentValue$1(resolveReference(type, fqns, mapping), fqns, mapping, inputVar);
-    }
-    else {
-        throw new TypeError(`not ready for type ${type}`);
-    }
-}
-function generateFieldAssginment(field, fqns, mapping) {
-    return `${field.name}: ${generateAssignmentValue$1(field.type, fqns, mapping, `input.${field.name}`)}`;
-}
-function generateSerialize(type, fqns, mapping) {
-    const name = type.name;
-    return `public static serialize(input: ${name}): object {
-    return {
-      ${type.fields.map((field) => generateFieldAssginment(field, fqns, mapping))}
-    }
-  }`;
-}
-
-function generateClassFieldDeclaration(field, fqns, mapping) {
-    return `public readonly ${field.name}: ${generateFieldType(field.type, fqns, mapping)}`;
-}
-function generateClass(type, fqns, mapping) {
-    const assignments = type.fields.length === 0
-        ? '/* noop */'
-        : type.fields.map((field) => `this.${field.name} = input.${field.name};`).join('\n');
-    return `export class ${className(type)} implements ${interfaceName(type)} {
-    public static FQN = '${qualifiedName(type)}'
-    ${type.fields.map((f) => generateClassFieldDeclaration(f, fqns, mapping)).join('\n')}
-    constructor(input: Partial<${interfaceName(type)}>) {
-      ${assignments}
-    }
-    ${generateDeserialize(type, fqns, mapping)}
-    ${generateSerialize(type, fqns, mapping)}
-  }`;
-}
-
-function generateFieldDeclaration(field, fqns, mapping) {
-    return `${field.name}: ${generateFieldType(field.type, fqns, mapping)}`;
-}
-function generateInterface(type, fqns, mapping) {
-    return `export interface ${interfaceName(type)} {
-    ${type.fields.map((field) => generateFieldDeclaration(field, fqns, mapping)).join('\n')}
-  }`;
-}
-
 class FqnResolver {
     constructor() {
         this.fqns = new Set();
@@ -477,34 +163,34 @@ class FqnResolver {
     }
 }
 
-function augmentRecordsAndEnums(type, namespace, fqns) {
+function augmentRecordsAndEnums(type, namespace, context) {
     if (isUnion(type)) {
-        type.forEach((tp) => augmentRecordsAndEnums(tp, namespace, fqns));
+        type.forEach((tp) => augmentRecordsAndEnums(tp, namespace, context));
     }
     else if (isEnumType(type)) {
         type.namespace = type.namespace || namespace;
-        fqns.add(type.namespace, type.name);
+        context.fqnResolver.add(type.namespace, type.name);
     }
     else if (isRecordType(type)) {
         type.namespace = type.namespace || namespace;
-        fqns.add(type.namespace, type.name);
-        type.fields.forEach((field) => augmentRecordsAndEnums(field.type, type.namespace, fqns));
+        context.fqnResolver.add(type.namespace, type.name);
+        type.fields.forEach((field) => augmentRecordsAndEnums(field.type, type.namespace, context));
     }
     else if (isArrayType(type)) {
-        augmentRecordsAndEnums(type.items, namespace, fqns);
+        augmentRecordsAndEnums(type.items, namespace, context);
     }
     else if (isMapType(type)) {
-        augmentRecordsAndEnums(type.values, namespace, fqns);
+        augmentRecordsAndEnums(type.values, namespace, context);
     }
 }
-function augmentReferences(type, fqns) {
+function augmentReferences(type, context) {
     if (isUnion(type)) {
         type.forEach((optionType, i) => {
             if (typeof optionType === 'string' && !isPrimitive(optionType)) {
-                type[i] = fqns.get(optionType);
+                type[i] = context.fqnResolver.get(optionType);
             }
             else {
-                augmentReferences(optionType, fqns);
+                augmentReferences(optionType, context);
             }
         });
     }
@@ -512,27 +198,24 @@ function augmentReferences(type, fqns) {
         type.fields.forEach((field) => {
             const ft = field.type;
             if (typeof ft === 'string' && !isPrimitive(ft)) {
-                field.type = fqns.get(ft);
+                field.type = context.fqnResolver.get(ft);
             }
         });
     }
     else if (isArrayType(type)) {
-        augmentReferences(type.items, fqns);
+        augmentReferences(type.items, context);
     }
     else if (isMapType(type)) {
-        augmentReferences(type.values, fqns);
+        augmentReferences(type.values, context);
     }
 }
-function addNamespaces(type, fqns) {
+function addNamespaces(type, context) {
     const cloned = JSON.parse(JSON.stringify(type));
-    augmentRecordsAndEnums(cloned, null, fqns);
-    augmentReferences(cloned, fqns);
+    augmentRecordsAndEnums(cloned, null, context);
+    augmentReferences(cloned, context);
     return cloned;
 }
 
-function getNameToTypeMapping(types) {
-    return new Map(types.map((type) => [qualifiedName(type), type]));
-}
 function alphaComparator(a, b) {
     if (a.name < b.name) {
         return -1;
@@ -541,6 +224,386 @@ function alphaComparator(a, b) {
         return 1;
     }
     return 0;
+}
+function interfaceName(type) {
+    return `I${type.name}`;
+}
+function className(type) {
+    return type.name;
+}
+function enumName(type) {
+    return type.name;
+}
+function qualifiedNameFor(type, transform, context) {
+    const baseName = transform(type);
+    if (context.options.removeNameSpace) {
+        return baseName;
+    }
+    return type.namespace ? `${type.namespace}.${baseName}` : `${baseName}`;
+}
+function qInterfaceName(type, context) {
+    return qualifiedNameFor(type, interfaceName, context);
+}
+function qClassName(type, context) {
+    return qualifiedNameFor(type, className, context);
+}
+function qEnumName(type, context) {
+    return qualifiedNameFor(type, enumName, context);
+}
+function qualifiedName(type) {
+    return type.namespace ? `${type.namespace}.${type.name}` : type.name;
+}
+function resolveReference(ref, context) {
+    const fqn = context.fqnResolver.get(ref);
+    return context.nameToTypeMapping.get(fqn);
+}
+function asSelfExecuting(code) {
+    return `(() => {
+    ${code}
+  })()`;
+}
+function joinConditional(branches) {
+    if (branches.length === 0) {
+        return '';
+    }
+    const [[firstCond, firstBranch], ...restOfBranches] = branches;
+    return `if(${firstCond}){\n${firstBranch}\n}
+  ${restOfBranches.map(([cond, branch]) => `else if(${cond}){\n${branch}\n}`).join('\n')}`;
+}
+function getTypeName(type, context) {
+    if (isPrimitive(type)) {
+        return type;
+    }
+    else if (isArrayType(type) || isMapType(type)) {
+        return type.type;
+    }
+    else if (isRecordType(type) || isEnumType(type)) {
+        return qualifiedName(type);
+    }
+    else if (typeof type === 'string') {
+        return context.fqnResolver.get(type);
+    }
+}
+function groupByNamespace(types) {
+    const mapping = new Map();
+    types.forEach((type) => {
+        if (!Array.isArray(mapping.get(type.namespace))) {
+            mapping.set(type.namespace, []);
+        }
+        const array = mapping.get(type.namespace);
+        array.push(type);
+    });
+    return mapping;
+}
+function collectNamespaces(types) {
+    const ns = new Set();
+    types.forEach(({ namespace }) => ns.add(namespace));
+    return ns;
+}
+
+function generatePrimitive(avroType) {
+    switch (avroType) {
+        case 'long':
+        case 'int':
+        case 'double':
+        case 'float':
+            return 'number';
+        case 'bytes':
+            return 'Buffer';
+        case 'null':
+            return 'null';
+        case 'boolean':
+            return 'boolean';
+        case 'string':
+            return 'string';
+        default:
+            throw new TypeError(`Unknown primitive type: ${avroType}`);
+    }
+}
+function generateFieldType(type, context) {
+    if (isPrimitive(type)) {
+        return generatePrimitive(type);
+    }
+    else if (typeof type === 'string') {
+        return generateFieldType(resolveReference(type, context), context);
+    }
+    else if (type instanceof Array) {
+        return type.map((tpe) => generateFieldType(tpe, context)).join(' | ');
+    }
+    else if (isRecordType(type)) {
+        return qInterfaceName(type, context);
+    }
+    else if (isEnumType(type)) {
+        return qEnumName(type, context);
+    }
+    else if (isArrayType(type)) {
+        if ([].concat(type.items).length === 1) {
+            return `${generateFieldType(type.items, context)}[]`;
+        }
+        return `(${generateFieldType(type.items, context)})[]`;
+    }
+    else if (isMapType(type)) {
+        return `{ [index:string]:${generateFieldType(type.values, context)} }`;
+    }
+    throw new TypeError(`Unknown type ${type}!`);
+}
+
+function generateFieldDeclaration(field, context) {
+    return `${field.name}: ${generateFieldType(field.type, context)}`;
+}
+function generateInterface(type, context) {
+    return `export interface ${interfaceName(type)} {
+    ${type.fields.map((field) => generateFieldDeclaration(field, context)).join('\n')}
+  }`;
+}
+
+function getKey(t, context) {
+    if (!isPrimitive(t) && typeof t === 'string') {
+        return getKey(resolveReference(t, context), context);
+    }
+    else if (isEnumType(t) || isRecordType(t)) {
+        return `'${qualifiedName(t)}'`;
+    }
+    else {
+        return `'${getTypeName(t, context)}'`;
+    }
+}
+function generateAssignmentValue(type, context, inputVar) {
+    if ((typeof type === 'string' && isPrimitive(type)) || isEnumType(type)) {
+        return `${inputVar}`;
+    }
+    else if (isRecordType(type)) {
+        return `${qClassName(type, context)}.deserialize(${inputVar})`;
+    }
+    else if (typeof type === 'string') {
+        return generateAssignmentValue(resolveReference(type, context), context, inputVar);
+    }
+    else if (isArrayType(type)) {
+        if (isUnion(type.items) && type.items.length > 1) {
+            return `${inputVar}.map((e: any) => {
+        return ${generateAssignmentValue(type.items, context, 'e')}
+      })`;
+        }
+        return `${inputVar}.map((e: any) => ${generateAssignmentValue(type.items, context, 'e')})`;
+    }
+    else if (isUnion(type)) {
+        if (type.length === 1) {
+            return generateAssignmentValue(type[0], context, inputVar);
+        }
+        const nonNullTypes = type.filter((t) => t !== 'null');
+        const hasNull = nonNullTypes.length !== type.length;
+        let conditions = null;
+        let branches = null;
+        conditions = nonNullTypes.map((t) => `${inputVar}[${getKey(t, context)}] !== undefined`);
+        branches = nonNullTypes.map((t) => `return ${generateAssignmentValue(t, context, `${inputVar}[${getKey(t, context)}]`)}`);
+        if (hasNull) {
+            conditions = [`${inputVar} === null`].concat(conditions);
+            branches = [`return null`].concat(branches);
+        }
+        const branchesAsTuples = conditions.map((c, i) => [c, branches[i]]);
+        const block = `${joinConditional(branchesAsTuples)}
+    throw new TypeError('Unresolvable type');`;
+        return asSelfExecuting(`${block}`);
+    }
+    else if (isMapType(type)) {
+        const mapParsingStatements = `const keys = Object.keys(${inputVar});
+    const output: ${generateFieldType(type, context)} = {};
+    for(let i = 0; i < keys.length; i +=1 ) {
+      const mapKey = keys[i];
+      const mapValue = ${inputVar}[mapKey];
+      output[mapKey] = ${generateAssignmentValue(type.values, context, 'mapValue')};
+    }
+    return output;`;
+        return asSelfExecuting(mapParsingStatements);
+    }
+    return 'null';
+}
+function generateDeserializeFieldAssignment(field, context) {
+    return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)},`;
+}
+function generateDeserialize(type, context) {
+    return `public static deserialize(input: any): ${className(type)} {
+    return new ${className(type)}({
+      ${type.fields.map((f) => generateDeserializeFieldAssignment(f, context)).join('\n')}
+    })
+  }`;
+}
+
+function getKey$1(t, context) {
+    if (!isPrimitive(t) && typeof t === 'string') {
+        return getKey$1(resolveReference(t, context), context);
+    }
+    else if (isEnumType(t) || isRecordType(t)) {
+        return `'${qualifiedName(t)}'`;
+    }
+    else {
+        return `'${getTypeName(t, context)}'`;
+    }
+}
+function generateCondition(type, context, inputVar) {
+    if (isPrimitive(type)) {
+        switch (type) {
+            case 'string':
+                return `typeof ${inputVar} === 'string'`;
+            case 'boolean':
+                return `typeof ${inputVar} === 'boolean'`;
+            case 'int':
+            case 'long':
+                return `typeof ${inputVar} === 'number' && ${inputVar} % 1 === 0`;
+            case 'float':
+            case 'double':
+                return `typeof ${inputVar} === 'number' && ${inputVar} % 1 !== 0`;
+            /* case 'bytes':
+              return `typeof ${inputVar} === Buffer` */
+        }
+    }
+    else if (isArrayType(type)) {
+        return `Array.isArray(${inputVar})`;
+    }
+    else if (isRecordType(type)) {
+        return `${inputVar} instanceof ${qClassName(type, context)}`;
+    }
+    else if (isEnumType(type)) {
+        return `typeof ${inputVar} === 'string' && [${type.symbols
+            .map((s) => `'${s}'`)
+            .join(',')}].indexOf(${inputVar}) >= 0`;
+    }
+    else if (isMapType(type)) {
+        return `typeof ${inputVar} === 'object'`; // TODO
+    }
+    else if (typeof type === 'string') {
+        return generateCondition(resolveReference(type, context), context, inputVar);
+    }
+    throw new TypeError(`Unknown type ${JSON.stringify(type)}`);
+}
+function generateUnionWrapper(type, context, inputVar) {
+    if (isPrimitive(type) || isArrayType(type) || isMapType(type) || isEnumType(type) || isRecordType(type)) {
+        return `return { ${getKey$1(type, context)}: ${generateAssignmentValue$1(type, context, inputVar)} }`;
+    }
+    else if (typeof type === 'string') {
+        return generateUnionWrapper(resolveReference(type, context), context, inputVar);
+    }
+    else {
+        throw new TypeError(`Unknown type ${type}`);
+    }
+}
+function generateAssignmentValue$1(type, context, inputVar) {
+    if (isPrimitive(type) || isEnumType(type)) {
+        return inputVar;
+    }
+    else if (isRecordType(type)) {
+        return `${qClassName(type, context)}.serialize(${inputVar})`;
+    }
+    else if (isArrayType(type)) {
+        if (isUnion(type.items) && type.items.length > 1) {
+            return `${inputVar}.map((e) => {
+        return ${generateAssignmentValue$1(type.items, context, 'e')}
+      })`;
+        }
+        return `${inputVar}.map((e) => ${generateAssignmentValue$1(type.items, context, 'e')})`;
+    }
+    else if (isUnion(type)) {
+        if (type.length === 1) {
+            return generateAssignmentValue$1(type[0], context, inputVar);
+        }
+        const hasNull = type.indexOf('null') >= 0;
+        const withoutNull = type.filter((t) => t !== 'null');
+        let conditions = withoutNull.map((t) => generateCondition(t, context, inputVar));
+        let values = withoutNull.map((t) => generateUnionWrapper(t, context, inputVar));
+        if (hasNull) {
+            conditions = [`${inputVar} === null`].concat(conditions);
+            values = [`return null`].concat(values);
+        }
+        let branches = conditions.map((c, i) => [c, values[i]]);
+        const block = `${joinConditional(branches)}
+    throw new TypeError('Unserializable type!')`;
+        return asSelfExecuting(block);
+    }
+    else if (isMapType(type)) {
+        const mapParsingStatements = `const keys = Object.keys(${inputVar});
+    const output: any = {};
+    for(let i = 0; i < keys.length; i +=1 ) {
+      const mapKey = keys[i];
+      const mapValue = ${inputVar}[mapKey];
+      output[mapKey] = ${generateAssignmentValue$1(type.values, context, 'mapValue')};
+    }
+    return output;`;
+        return asSelfExecuting(mapParsingStatements);
+    }
+    else if (typeof type === 'string') {
+        return generateAssignmentValue$1(resolveReference(type, context), context, inputVar);
+    }
+    else {
+        throw new TypeError(`not ready for type ${type}`);
+    }
+}
+function generateFieldAssginment(field, context) {
+    return `${field.name}: ${generateAssignmentValue$1(field.type, context, `input.${field.name}`)}`;
+}
+function generateSerialize(type, context) {
+    return `public static serialize(input: ${className(type)}): object {
+    return {
+      ${type.fields.map((field) => generateFieldAssginment(field, context))}
+    }
+  }`;
+}
+
+function generateClassFieldDeclaration(field, context) {
+    return `public ${field.name}: ${generateFieldType(field.type, context)}`;
+}
+function generateClass(type, context) {
+    const assignments = type.fields.length === 0
+        ? '/* noop */'
+        : type.fields.map((field) => `this.${field.name} = input.${field.name};`).join('\n');
+    return `export class ${className(type)} implements ${interfaceName(type)} {
+    ${type.fields.map((f) => generateClassFieldDeclaration(f, context)).join('\n')}
+    constructor(input: Partial<${interfaceName(type)}>) {
+      ${assignments}
+    }
+    ${generateDeserialize(type, context)}
+    ${generateSerialize(type, context)}
+  }`;
+}
+
+function generateEnum(type) {
+    return `export enum ${enumName(type)} {
+    ${type.symbols.map((symbol) => `${symbol} = '${symbol}'`).join(',\n')}
+  }`;
+}
+function generateStringUnion(type) {
+    return `export type ${enumName(type)} = ${type.symbols.map((symbol) => `'${symbol}'`).join(' | ')}`;
+}
+function generateEnumType(type, context) {
+    if (context.options.convertEnumToType) {
+        return generateStringUnion(type);
+    }
+    return generateEnum(type);
+}
+
+function generateContent(recordTypes, enumTypes, context) {
+    const sortedEnums = enumTypes.sort(alphaComparator);
+    const sortedRecords = recordTypes.sort(alphaComparator);
+    const enums = sortedEnums.map((t) => generateEnumType(t, context));
+    const interfaces = sortedRecords.map((t) => generateInterface(t, context));
+    const classes = sortedRecords.map((t) => generateClass(t, context));
+    return []
+        .concat(enums)
+        .concat(interfaces)
+        .concat(classes)
+        .join('\n');
+}
+
+function generateNamespace(namespace, records, enums, context) {
+    if (namespace === null) {
+        return generateContent(records, enums, context);
+    }
+    return `export namespace ${namespace} {
+    ${generateContent(records, enums, context)}
+  }`;
+}
+
+function getNameToTypeMapping(types) {
+    return new Map(types.map((type) => [qualifiedName(type), type]));
 }
 function getAllRecordTypes(type, types) {
     if (isRecordType(type)) {
@@ -576,20 +639,27 @@ function getAllEnumTypes(type, types) {
     }
     return types;
 }
-function generateAll(record) {
-    const fqns = new FqnResolver();
-    const type = addNamespaces(record, fqns);
-    const enumTypes = getAllEnumTypes(type, []).sort(alphaComparator);
-    const recordTypes = getAllRecordTypes(type, []).sort(alphaComparator);
-    const mapping = getNameToTypeMapping([].concat(enumTypes, recordTypes));
-    const enums = enumTypes.map(generateEnumType);
-    const interfaces = recordTypes.map((t) => generateInterface(t, fqns, mapping));
-    const classes = recordTypes.map((t) => generateClass(t, fqns, mapping));
-    return []
-        .concat(enums)
-        .concat(interfaces)
-        .concat(classes)
-        .join('\n');
+function generateAll(record, options) {
+    const context = {
+        options,
+        fqnResolver: new FqnResolver(),
+        nameToTypeMapping: new Map(),
+    };
+    const type = addNamespaces(record, context);
+    const enumTypes = getAllEnumTypes(type, []);
+    const recordTypes = getAllRecordTypes(type, []);
+    const allNamedTypes = [].concat(enumTypes, recordTypes);
+    context.nameToTypeMapping = getNameToTypeMapping(allNamedTypes);
+    if (options.removeNameSpace) {
+        return generateContent(recordTypes, enumTypes, context);
+    }
+    else {
+        const namespaces = Array.from(collectNamespaces(allNamedTypes));
+        const recordsGrouped = groupByNamespace(recordTypes);
+        const enumsGrouped = groupByNamespace(enumTypes);
+        const namespaceTypes = namespaces.map((ns) => [ns, recordsGrouped.get(ns) || [], enumsGrouped.get(ns) || []]);
+        return namespaceTypes.map(([ns, records, enums]) => generateNamespace(ns, records, enums, context)).join('\n');
+    }
 }
 
 const minimist = require('minimist');
@@ -617,24 +687,39 @@ function collectAllFiles({ file }) {
     rawFiles.forEach((rawFile) => collectFiles(rawFile, allFiles));
     return allFiles;
 }
-function generateContent(schema, args) {
+function generateContent$1(schema, args) {
+    const options = {
+        convertEnumToType: Boolean(args.convertEnumToType),
+        removeNameSpace: Boolean(args.removeNameSpace),
+    };
     if (Boolean(args.customMode)) {
-        return generateAll(schema);
+        return generateAll(schema, options);
     }
     else {
-        return avroToTypeScript(schema, {
-            convertEnumToType: Boolean(args.convertEnumToType),
-            removeNameSpace: Boolean(args.removeNameSpace),
-        });
+        return avroToTypeScript(schema, options);
     }
 }
 function convertAndSendToStdout(files, args) {
-    files.forEach((f) => {
+    const source = files
+        .map((f) => {
         const content = fs.readFileSync(f, 'UTF8');
         const schema = JSON.parse(content);
-        const tsContent = generateContent(schema, args);
-        process.stdout.write(`// Generated from ${path.basename(f)}\n\n${tsContent}\n`);
+        const tsContent = generateContent$1(schema, args);
+        return `// Generated from ${path.basename(f)}\n\n${tsContent}\n`;
+    })
+        .join('\n');
+    const formattedSource = prettier.format(source, {
+        printWidth: 120,
+        semi: true,
+        parser: 'typescript',
+        tabWidth: 2,
+        useTabs: false,
+        singleQuote: true,
+        trailingComma: 'es5',
+        bracketSpacing: true,
+        arrowParens: 'always',
     });
+    process.stdout.write(formattedSource);
 }
 const [, , ...valuableArgs] = process.argv;
 const parsedArgs = minimist(valuableArgs, {
