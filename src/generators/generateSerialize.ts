@@ -1,30 +1,20 @@
-import {
-  RecordType,
-  Field,
-  isPrimitive,
-  isEnumType,
-  isRecordType,
-  isArrayType,
-  isUnion,
-  isMapType,
-  HasName,
-} from '../model'
+import { RecordType, Field, isPrimitive, isEnumType, isRecordType, isArrayType, isUnion, isMapType } from '../model'
 import { asSelfExecuting, joinConditional, className, qualifiedName, getTypeName, resolveReference } from './utils'
-import { FqnResolver } from './FqnResolver'
+import { GeneratorContext } from './typings'
 
-function getKey(t: any, fqns: FqnResolver, mapping: Map<string, HasName>) {
+function getKey(t: any, context: GeneratorContext) {
   if (!isPrimitive(t) && typeof t === 'string') {
-    return getKey(resolveReference(t, fqns, mapping), fqns, mapping)
+    return getKey(resolveReference(t, context), context)
   } else if (isRecordType(t)) {
     return `[${className(t)}.FQN]`
   } else if (isEnumType(t)) {
     return `'${qualifiedName(t)}'`
   } else {
-    return `'${getTypeName(t, fqns)}'`
+    return `'${getTypeName(t, context)}'`
   }
 }
 
-function generateCondition(type: any, fqns: FqnResolver, mapping: Map<string, HasName>, inputVar: string) {
+function generateCondition(type: any, context: GeneratorContext, inputVar: string) {
   if (isPrimitive(type)) {
     switch (type) {
       case 'string':
@@ -51,27 +41,22 @@ function generateCondition(type: any, fqns: FqnResolver, mapping: Map<string, Ha
   } else if (isMapType(type)) {
     return `typeof ${inputVar} === 'object'` // TODO
   } else if (typeof type === 'string') {
-    return generateCondition(resolveReference(type, fqns, mapping), fqns, mapping, inputVar)
+    return generateCondition(resolveReference(type, context), context, inputVar)
   }
   throw new TypeError(`Unknown type ${JSON.stringify(type)}`)
 }
 
-function generateUnionWrapper(type: any, fqns: FqnResolver, mapping: Map<string, HasName>, inputVar: string) {
+function generateUnionWrapper(type: any, context: GeneratorContext, inputVar: string) {
   if (isPrimitive(type) || isArrayType(type) || isMapType(type) || isEnumType(type) || isRecordType(type)) {
-    return `return { ${getKey(type, fqns, mapping)}: ${generateAssignmentValue(type, fqns, mapping, inputVar)} }`
+    return `return { ${getKey(type, context)}: ${generateAssignmentValue(type, context, inputVar)} }`
   } else if (typeof type === 'string') {
-    return generateUnionWrapper(resolveReference(type, fqns, mapping), fqns, mapping, inputVar)
+    return generateUnionWrapper(resolveReference(type, context), context, inputVar)
   } else {
     throw new TypeError(`Unknown type ${type}`)
   }
 }
 
-function generateAssignmentValue(
-  type: any,
-  fqns: FqnResolver,
-  mapping: Map<string, HasName>,
-  inputVar: string,
-): string {
+function generateAssignmentValue(type: any, context: GeneratorContext, inputVar: string): string {
   if (isPrimitive(type) || isEnumType(type)) {
     return inputVar
   } else if (isRecordType(type)) {
@@ -79,18 +64,18 @@ function generateAssignmentValue(
   } else if (isArrayType(type)) {
     if (isUnion(type.items) && type.items.length > 1) {
       return `${inputVar}.map((e) => {
-        return ${generateAssignmentValue(type.items, fqns, mapping, 'e')}
+        return ${generateAssignmentValue(type.items, context, 'e')}
       })`
     }
-    return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, fqns, mapping, 'e')})`
+    return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`
   } else if (isUnion(type)) {
     if (type.length === 1) {
-      return generateAssignmentValue(type[0], fqns, mapping, inputVar)
+      return generateAssignmentValue(type[0], context, inputVar)
     }
     const hasNull = type.indexOf('null' as any) >= 0
     const withoutNull = type.filter((t) => (t as any) !== 'null')
-    let conditions = withoutNull.map((t) => generateCondition(t, fqns, mapping, inputVar))
-    let values = withoutNull.map((t) => generateUnionWrapper(t, fqns, mapping, inputVar))
+    let conditions = withoutNull.map((t) => generateCondition(t, context, inputVar))
+    let values = withoutNull.map((t) => generateUnionWrapper(t, context, inputVar))
     if (hasNull) {
       conditions = [`${inputVar} === null`].concat(conditions)
       values = [`return null`].concat(values)
@@ -105,26 +90,26 @@ function generateAssignmentValue(
     for(let i = 0; i < keys.length; i +=1 ) {
       const mapKey = keys[i];
       const mapValue = ${inputVar}[mapKey];
-      output[mapKey] = ${generateAssignmentValue(type.values, fqns, mapping, 'mapValue')};
+      output[mapKey] = ${generateAssignmentValue(type.values, context, 'mapValue')};
     }
     return output;`
     return asSelfExecuting(mapParsingStatements)
   } else if (typeof type === 'string') {
-    return generateAssignmentValue(resolveReference(type, fqns, mapping), fqns, mapping, inputVar)
+    return generateAssignmentValue(resolveReference(type, context), context, inputVar)
   } else {
     throw new TypeError(`not ready for type ${type}`)
   }
 }
 
-function generateFieldAssginment(field: Field, fqns: FqnResolver, mapping: Map<string, HasName>): string {
-  return `${field.name}: ${generateAssignmentValue(field.type, fqns, mapping, `input.${field.name}`)}`
+function generateFieldAssginment(field: Field, context: GeneratorContext): string {
+  return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)}`
 }
 
-export function generateSerialize(type: RecordType, fqns: FqnResolver, mapping: Map<string, HasName>): string {
+export function generateSerialize(type: RecordType, context: GeneratorContext): string {
   const name = type.name
   return `public static serialize(input: ${name}): object {
     return {
-      ${type.fields.map((field) => generateFieldAssginment(field, fqns, mapping))}
+      ${type.fields.map((field) => generateFieldAssginment(field, context))}
     }
   }`
 }

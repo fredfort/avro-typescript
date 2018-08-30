@@ -1,15 +1,15 @@
-import { RecordType, HasName, Field } from '../model'
+import { RecordType, Field } from '../model'
 import { className, interfaceName, qualifiedName } from './utils'
 import { generateDeserialize } from './generateDeserialize'
 import { generateSerialize } from './generateSerialize'
 import { generateFieldType } from './generateFieldType'
-import { FqnResolver } from './FqnResolver';
+import { GeneratorContext } from './typings'
 
-function generateClassFieldDeclaration(field: Field, fqns: FqnResolver, mapping: Map<string, HasName>): string {
-  return `public readonly ${field.name}: ${generateFieldType(field.type, fqns, mapping)}`
+function generateClassFieldDeclaration(field: Field, context: GeneratorContext): string {
+  return `public readonly ${field.name}: ${generateFieldType(field.type, context)}`
 }
 
-export function generateClass(type: RecordType, fqns: FqnResolver, mapping: Map<string, HasName>): string {
+export function generateClass(type: RecordType, context: GeneratorContext): string {
   const assignments =
     type.fields.length === 0
       ? '/* noop */'
@@ -17,11 +17,11 @@ export function generateClass(type: RecordType, fqns: FqnResolver, mapping: Map<
 
   return `export class ${className(type)} implements ${interfaceName(type)} {
     public static FQN = '${qualifiedName(type)}'
-    ${type.fields.map((f) => generateClassFieldDeclaration(f, fqns, mapping)).join('\n')}
+    ${type.fields.map((f) => generateClassFieldDeclaration(f, context)).join('\n')}
     constructor(input: Partial<${interfaceName(type)}>) {
       ${assignments}
     }
-    ${generateDeserialize(type, fqns, mapping)}
-    ${generateSerialize(type, fqns, mapping)}
+    ${generateDeserialize(type, context)}
+    ${generateSerialize(type, context)}
   }`
 }

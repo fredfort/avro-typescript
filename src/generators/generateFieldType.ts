@@ -1,6 +1,6 @@
 import { interfaceName, resolveReference } from './utils'
-import { HasName, isRecordType, isPrimitive, isEnumType, isArrayType, isMapType } from '../model'
-import { FqnResolver } from './FqnResolver'
+import { isRecordType, isPrimitive, isEnumType, isArrayType, isMapType } from '../model'
+import { GeneratorContext } from './typings'
 
 function generatePrimitive(avroType: string): string {
   switch (avroType) {
@@ -22,24 +22,24 @@ function generatePrimitive(avroType: string): string {
   }
 }
 
-export function generateFieldType(type: any, fqns: FqnResolver, mapping: Map<string, HasName>): string {
+export function generateFieldType(type: any, context: GeneratorContext): string {
   if (isPrimitive(type)) {
     return generatePrimitive(type)
   } else if (typeof type === 'string') {
-    return generateFieldType(resolveReference(type, fqns, mapping), fqns, mapping)
+    return generateFieldType(resolveReference(type, context), context)
   } else if (type instanceof Array) {
-    return type.map((tpe) => generateFieldType(tpe, fqns, mapping)).join(' | ')
+    return type.map((tpe) => generateFieldType(tpe, context)).join(' | ')
   } else if (isRecordType(type)) {
     return interfaceName(type)
   } else if (isEnumType(type)) {
     return type.name
   } else if (isArrayType(type)) {
     if ([].concat(type.items).length === 1) {
-      return `${generateFieldType(type.items, fqns, mapping)}[]`
+      return `${generateFieldType(type.items, context)}[]`
     }
-    return `(${generateFieldType(type.items, fqns, mapping)})[]`
+    return `(${generateFieldType(type.items, context)})[]`
   } else if (isMapType(type)) {
-    return `{ [index:string]:${generateFieldType(type.values, fqns, mapping)} }`
+    return `{ [index:string]:${generateFieldType(type.values, context)} }`
   }
   throw new TypeError(`Unknown type ${type}!`)
 }
