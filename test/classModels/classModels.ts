@@ -48,6 +48,21 @@ export class RecordWithArrays implements IRecordWithArrays {
       }),
     };
   }
+  public static clone(input: RecordWithArrays): RecordWithArrays {
+    return new RecordWithArrays({
+      simpleArray: input.simpleArray.map((e) => e),
+      multiTypeArray: input.multiTypeArray.map((e) => {
+        return (() => {
+          if (typeof e === 'string') {
+            return e;
+          } else if (typeof e === 'number' && e % 1 === 0) {
+            return e;
+          }
+          throw new TypeError('Unrecognizable type!');
+        })();
+      }),
+    });
+  }
 }
 
 // Generated from enum.avsc
@@ -83,6 +98,12 @@ export class Distance implements IDistance {
       amount: input.amount,
       unit: input.unit,
     };
+  }
+  public static clone(input: Distance): Distance {
+    return new Distance({
+      amount: input.amount,
+      unit: input.unit,
+    });
   }
 }
 
@@ -126,6 +147,20 @@ export class MapValue implements IMapValue {
         return output;
       })(),
     };
+  }
+  public static clone(input: MapValue): MapValue {
+    return new MapValue({
+      value: (() => {
+        const keys = Object.keys(input.value);
+        const output: { [index: string]: number } = {};
+        for (let i = 0; i < keys.length; i += 1) {
+          const mapKey = keys[i];
+          const mapValue = input.value[mapKey];
+          output[mapKey] = mapValue;
+        }
+        return output;
+      })(),
+    });
   }
 }
 
@@ -174,6 +209,12 @@ export class Address implements IAddress {
       country: input.country,
     };
   }
+  public static clone(input: Address): Address {
+    return new Address({
+      city: input.city,
+      country: input.country,
+    });
+  }
 }
 export class FullName implements IFullName {
   public firstName: string;
@@ -194,6 +235,12 @@ export class FullName implements IFullName {
       lastName: input.lastName,
     };
   }
+  public static clone(input: FullName): FullName {
+    return new FullName({
+      firstName: input.firstName,
+      lastName: input.lastName,
+    });
+  }
 }
 export class Person implements IPerson {
   public fullname: IFullName;
@@ -213,6 +260,12 @@ export class Person implements IPerson {
       fullname: FullName.serialize(input.fullname),
       addresses: input.addresses.map((e) => Address.serialize(e)),
     };
+  }
+  public static clone(input: Person): Person {
+    return new Person({
+      fullname: FullName.clone(input.fullname),
+      addresses: input.addresses.map((e) => Address.clone(e)),
+    });
   }
 }
 
@@ -345,6 +398,47 @@ export class Dog implements IDog {
       })(),
     };
   }
+  public static clone(input: Dog): Dog {
+    return new Dog({
+      name: input.name,
+      owner: (() => {
+        if (input.owner === null) {
+          return null;
+        } else if (input.owner instanceof Human) {
+          return Human.clone(input.owner);
+        }
+        throw new TypeError('Unrecognizable type!');
+      })(),
+      extra: input.extra.map((e) => {
+        return (() => {
+          if (e instanceof Human) {
+            return Human.clone(e);
+          } else if (e instanceof Dog) {
+            return Dog.clone(e);
+          }
+          throw new TypeError('Unrecognizable type!');
+        })();
+      }),
+      friend: (() => {
+        if (input.friend === null) {
+          return null;
+        } else if (input.friend instanceof Dog) {
+          return Dog.clone(input.friend);
+        }
+        throw new TypeError('Unrecognizable type!');
+      })(),
+      other: (() => {
+        if (input.other === null) {
+          return null;
+        } else if (input.other instanceof Dog) {
+          return Dog.clone(input.other);
+        } else if (input.other instanceof Human) {
+          return Human.clone(input.other);
+        }
+        throw new TypeError('Unrecognizable type!');
+      })(),
+    });
+  }
 }
 export class Human implements IHuman {
   public firstname: string;
@@ -364,6 +458,12 @@ export class Human implements IHuman {
       firstname: input.firstname,
       lastname: input.lastname,
     };
+  }
+  public static clone(input: Human): Human {
+    return new Human({
+      firstname: input.firstname,
+      lastname: input.lastname,
+    });
   }
 }
 
@@ -403,6 +503,11 @@ export class Leaf implements ILeaf {
     return {
       value: input.value,
     };
+  }
+  public static clone(input: Leaf): Leaf {
+    return new Leaf({
+      value: input.value,
+    });
   }
 }
 export class Tree implements ITree {
@@ -459,6 +564,30 @@ export class Tree implements ITree {
         throw new TypeError('Unserializable type!');
       })(),
     };
+  }
+  public static clone(input: Tree): Tree {
+    return new Tree({
+      left: (() => {
+        if (input.left === null) {
+          return null;
+        } else if (input.left instanceof Tree) {
+          return Tree.clone(input.left);
+        } else if (input.left instanceof Leaf) {
+          return Leaf.clone(input.left);
+        }
+        throw new TypeError('Unrecognizable type!');
+      })(),
+      right: (() => {
+        if (input.right === null) {
+          return null;
+        } else if (input.right instanceof Tree) {
+          return Tree.clone(input.right);
+        } else if (input.right instanceof Leaf) {
+          return Leaf.clone(input.right);
+        }
+        throw new TypeError('Unrecognizable type!');
+      })(),
+    });
   }
 }
 
@@ -520,5 +649,16 @@ export class RecordWithPrimitives implements IRecordWithPrimitives {
       int: input.int,
       other: input.other,
     };
+  }
+  public static clone(input: RecordWithPrimitives): RecordWithPrimitives {
+    return new RecordWithPrimitives({
+      bool: input.bool,
+      str: input.str,
+      long: input.long,
+      float: input.float,
+      double: input.double,
+      int: input.int,
+      other: input.other,
+    });
   }
 }

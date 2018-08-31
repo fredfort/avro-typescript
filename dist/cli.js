@@ -618,8 +618,69 @@ function generateFieldAssginment(field, context) {
 function generateSerialize(type, context) {
     return `public static serialize(input: ${className(type)}): ${avroWrapperName(type)} {
     return {
-      ${type.fields.map((field) => generateFieldAssginment(field, context))}
+      ${type.fields.map((field) => generateFieldAssginment(field, context)).join(',\n')}
     }
+  }`;
+}
+
+function generateAssignmentValue$2(type, context, inputVar) {
+    if (isPrimitive(type) || isEnumType(type)) {
+        return inputVar;
+    }
+    else if (isRecordType(type)) {
+        return `${qClassName(type, context)}.clone(${inputVar})`;
+    }
+    else if (isArrayType(type)) {
+        if (isUnion(type.items) && type.items.length > 1) {
+            return `${inputVar}.map((e) => {
+        return ${generateAssignmentValue$2(type.items, context, 'e')}
+      })`;
+        }
+        return `${inputVar}.map((e) => ${generateAssignmentValue$2(type.items, context, 'e')})`;
+    }
+    else if (isUnion(type)) {
+        if (type.length === 1) {
+            return generateAssignmentValue$2(type[0], context, inputVar);
+        }
+        const hasNull = type.indexOf('null') >= 0;
+        const withoutNull = type.filter((t) => t !== 'null');
+        let conditions = withoutNull.map((t) => generateCondition(t, context, inputVar));
+        let values = withoutNull.map((t) => `return ${generateAssignmentValue$2(t, context, inputVar)}`);
+        if (hasNull) {
+            conditions = [`${inputVar} === null`].concat(conditions);
+            values = [`return null`].concat(values);
+        }
+        let branches = conditions.map((c, i) => [c, values[i]]);
+        const block = `${joinConditional(branches)}
+    throw new TypeError('Unrecognizable type!')`;
+        return asSelfExecuting(block);
+    }
+    else if (isMapType(type)) {
+        const mapParsingStatements = `const keys = Object.keys(${inputVar});
+    const output: ${generateFieldType(type, context)} = {};
+    for(let i = 0; i < keys.length; i +=1 ) {
+      const mapKey = keys[i];
+      const mapValue = ${inputVar}[mapKey];
+      output[mapKey] = ${generateAssignmentValue$2(type.values, context, 'mapValue')};
+    }
+    return output;`;
+        return asSelfExecuting(mapParsingStatements);
+    }
+    else if (typeof type === 'string') {
+        return generateAssignmentValue$2(resolveReference(type, context), context, inputVar);
+    }
+    else {
+        throw new TypeError(`not ready for type ${type}`);
+    }
+}
+function generateFieldAssginment$1(field, context) {
+    return `${field.name}: ${generateAssignmentValue$2(field.type, context, `input.${field.name}`)}`;
+}
+function generateClone(type, context) {
+    return `public static clone(input: ${className(type)}): ${className(type)} {
+    return new ${className(type)}({
+      ${type.fields.map((field) => generateFieldAssginment$1(field, context)).join(',\n')}
+    })
   }`;
 }
 
@@ -637,6 +698,7 @@ function generateClass(type, context) {
     }
     ${generateDeserialize(type, context)}
     ${generateSerialize(type, context)}
+    ${generateClone(type, context)}
   }`;
 }
 
