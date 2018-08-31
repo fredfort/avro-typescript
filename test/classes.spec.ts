@@ -23,7 +23,7 @@ import {
 } from './classModels/classModels'
 
 describe('Classes', () => {
-  it('Should serialize/deserialize primitive types', () => {
+  it('Should serialize/deserialize/clone primitive types', () => {
     const input: IRecordWithPrimitivesAvroWrapper = {
       bool: true,
       double: 1.2,
@@ -36,9 +36,13 @@ describe('Classes', () => {
     const parsed = RecordWithPrimitives.deserialize(input)
     expect(parsed).to.be.instanceOf(RecordWithPrimitives)
     expect(RecordWithPrimitives.serialize(parsed)).to.deep.equal(input)
+
+    const clone = RecordWithPrimitives.clone(parsed)
+    expect(clone).not.to.equal(parsed)
+    expect(clone).to.deep.equal(parsed)
   })
 
-  it('Should serialize/deserialize array types', () => {
+  it('Should serialize/deserialize/clone array types', () => {
     const input: IRecordWithArraysAvroWrapper = {
       multiTypeArray: [{ int: 5 }, { string: 'hello' }, { int: 4 }],
       simpleArray: ['he', 'llo', 'world'],
@@ -47,9 +51,13 @@ describe('Classes', () => {
     expect(parsed).to.be.instanceOf(RecordWithArrays)
     expect(parsed.multiTypeArray).to.deep.equal([5, 'hello', 4])
     expect(RecordWithArrays.serialize(parsed)).to.deep.equal(input)
+
+    const clone = RecordWithArrays.clone(parsed)
+    expect(clone).not.to.equal(parsed)
+    expect(clone).to.deep.equal(parsed)
   })
 
-  it('Should serialize/deserialize enum types', () => {
+  it('Should serialize/deserialize/clone enum types', () => {
     const input: IDistanceAvroWrapper = {
       amount: 1,
       unit: UnitOfDistance.miles,
@@ -57,9 +65,13 @@ describe('Classes', () => {
     const parsed = Distance.deserialize(input)
     expect(parsed).to.be.instanceOf(Distance)
     expect(Distance.serialize(parsed)).to.deep.equal(input)
+
+    const clone = Distance.clone(parsed)
+    expect(clone).not.to.equal(parsed)
+    expect(clone).to.deep.equal(parsed)
   })
 
-  it('Should serialize/deserialize map types', () => {
+  it('Should serialize/deserialize/clone map types', () => {
     const input: IMapValueAvroWrapper = {
       value: {
         hi: 1,
@@ -69,9 +81,13 @@ describe('Classes', () => {
     const parsed = MapValue.deserialize(input)
     expect(parsed).to.be.instanceOf(MapValue)
     expect(MapValue.serialize(parsed)).to.deep.equal(input)
+
+    const clone = MapValue.clone(parsed)
+    expect(clone).not.to.equal(parsed)
+    expect(clone).to.deep.equal(parsed)
   })
 
-  it('Should serialize/deserialize multiple types', () => {
+  it('Should serialize/deserialize/clone multiple types', () => {
     const input: IPersonAvroWrapper = {
       fullname: {
         firstName: 'John',
@@ -86,9 +102,13 @@ describe('Classes', () => {
     expect(parsed.addresses[0]).to.be.instanceof(Address)
     expect(parsed.addresses[1]).to.be.instanceof(Address)
     expect(Person.serialize(parsed)).to.deep.equal(input)
+
+    const clone = Person.clone(parsed)
+    expect(clone).not.to.equal(parsed)
+    expect(clone).to.deep.equal(parsed)
   })
 
-  it('Should serialize/deserialize namespaced types', () => {
+  it('Should serialize/deserialize/clone namespaced types', () => {
     const human1: IHumanAvroWrapper = {
       firstname: 'Human1',
       lastname: 'Human1',
@@ -112,11 +132,14 @@ describe('Classes', () => {
     expect(parsed.extra).to.have.length(1)
     expect(parsed.extra[0]).to.be.instanceOf(Human)
     expect(parsed.friend).to.be.eq(null)
-
     expect(Dog.serialize(parsed)).to.deep.equal(input)
+
+    const clone = Dog.clone(parsed)
+    expect(clone).not.to.equal(parsed)
+    expect(clone).to.deep.equal(parsed)
   })
 
-  it('Should serialize/deserialize nested union types', () => {
+  it('Should serialize/deserialize/clone nested union types', () => {
     const input: ITreeAvroWrapper = {
       left: {
         'com.company.Tree': {
@@ -146,5 +169,9 @@ describe('Classes', () => {
     expect((parsed.left as Tree).right).to.be.instanceOf(Tree)
     expect(parsed.right).to.be.instanceOf(Leaf)
     expect(Tree.serialize(parsed)).to.be.deep.equal(input)
+
+    const clone = Tree.clone(parsed)
+    expect(clone).not.to.equal(parsed)
+    expect(clone).to.deep.equal(parsed)
   })
 })

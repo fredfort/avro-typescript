@@ -22,7 +22,7 @@ function getKey(t: any, context: GeneratorContext) {
   }
 }
 
-function generateCondition(type: any, context: GeneratorContext, inputVar: string) {
+export function generateCondition(type: any, context: GeneratorContext, inputVar: string) {
   if (isPrimitive(type)) {
     switch (type) {
       case 'string':
@@ -116,7 +116,7 @@ function generateFieldAssginment(field: Field, context: GeneratorContext): strin
 export function generateSerialize(type: RecordType, context: GeneratorContext): string {
   return `public static serialize(input: ${className(type)}): ${avroWrapperName(type)} {
     return {
-      ${type.fields.map((field) => generateFieldAssginment(field, context))}
+      ${type.fields.map((field) => generateFieldAssginment(field, context)).join(',\n')}
     }
   }`
 }
