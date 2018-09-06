@@ -4,10 +4,11 @@ import {
   asSelfExecuting,
   joinConditional,
   className,
-  qualifiedName,
   resolveReference,
   qClassName,
   avroWrapperName,
+  fqnConstantName,
+  qualifiedName,
 } from './utils'
 import { generateFieldType } from './generateFieldType'
 import { GeneratorContext } from './typings'
@@ -16,7 +17,7 @@ function getKey(t: any, context: GeneratorContext) {
   if (!isPrimitive(t) && typeof t === 'string') {
     return getKey(resolveReference(t, context), context)
   } else if (isEnumType(t) || isRecordType(t)) {
-    return `'${qualifiedName(t)}'`
+    return context.options.removeNameSpace ? fqnConstantName(t) : `'${qualifiedName(t)}'`
   } else {
     return `'${getTypeName(t, context)}'`
   }

@@ -4,6 +4,7 @@ import {
   qEnumName,
   resolveReference,
   qAvroWrapperName,
+  fqnConstantName,
   qualifiedName,
   enumName,
   className,
@@ -15,9 +16,9 @@ function getTypeKey(type: any, context: GeneratorContext): string {
   if (isPrimitive(type)) {
     return type
   } else if (isEnumType(type)) {
-    return qualifiedName(type, enumName)
+    return context.options.removeNameSpace ? `[${fqnConstantName(type)}]` : qualifiedName(type, enumName)
   } else if (isRecordType(type)) {
-    return qualifiedName(type, className)
+    return context.options.removeNameSpace ? `[${fqnConstantName(type)}]` : qualifiedName(type, className)
   } else if (isArrayType(type) || isMapType(type)) {
     return type.type
   } else if (typeof type === 'string') {

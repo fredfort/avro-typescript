@@ -1,5 +1,6 @@
 import { RecordType, isPrimitive, isArrayType, isMapType, isEnumType, isRecordType, HasName, EnumType } from '../model'
 import { GeneratorContext } from './typings'
+const constantCase = require('constant-case')
 
 export function alphaComparator(a: HasName, b: HasName) {
   if (a.name < b.name) {
@@ -24,6 +25,10 @@ export function className(type: RecordType) {
 
 export function enumName(type: EnumType) {
   return type.name
+}
+
+export function fqnConstantName(type: HasName) {
+  return `${constantCase(type.name)}_FQN`
 }
 
 function qualifiedNameFor<T extends HasName>(type: T, transform: (T) => string, context: GeneratorContext) {

@@ -14,11 +14,15 @@ export function generateClass(type: RecordType, context: GeneratorContext): stri
   const assignments =
     type.fields.length === 0
       ? '/* noop */'
-      : type.fields.map((field) => `this.${field.name} = input.${field.name};`).join('\n')
+      : type.fields
+          .map((field) => {
+            return `this.${field.name} = input.${field.name} === undefined ? null : input.${field.name};`
+          })
+          .join('\n')
 
   return `export class ${className(type)} implements ${interfaceName(type)} {
     ${type.fields.map((f) => generateClassFieldDeclaration(f, context)).join('\n')}
-    constructor(input: Partial<${interfaceName(type)}>) {
+    constructor(input: ${interfaceName(type)}) {
       ${assignments}
     }
     ${generateDeserialize(type, context)}

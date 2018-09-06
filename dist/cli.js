@@ -216,6 +216,7 @@ function addNamespaces(type, context) {
     return cloned;
 }
 
+const constantCase = require('constant-case');
 function alphaComparator(a, b) {
     if (a.name < b.name) {
         return -1;
@@ -236,6 +237,9 @@ function className(type) {
 }
 function enumName(type) {
     return type.name;
+}
+function fqnConstantName(type) {
+    return `${constantCase(type.name)}_FQN`;
 }
 function qualifiedNameFor(type, transform, context) {
     if (context.options.removeNameSpace) {
@@ -367,7 +371,7 @@ function getKey(t, context) {
         return getKey(resolveReference(t, context), context);
     }
     else if (isEnumType(t) || isRecordType(t)) {
-        return `'${qualifiedName(t)}'`;
+        return context.options.removeNameSpace ? fqnConstantName(t) : `'${qualifiedName(t)}'`;
     }
     else {
         return `'${getTypeName(t, context)}'`;
@@ -439,10 +443,10 @@ function getTypeKey(type, context) {
         return type;
     }
     else if (isEnumType(type)) {
-        return qualifiedName(type, enumName);
+        return context.options.removeNameSpace ? `[${fqnConstantName(type)}]` : qualifiedName(type, enumName);
     }
     else if (isRecordType(type)) {
-        return qualifiedName(type, className);
+        return context.options.removeNameSpace ? `[${fqnConstantName(type)}]` : qualifiedName(type, className);
     }
     else if (isArrayType(type) || isMapType(type)) {
         return type.type;
@@ -509,7 +513,7 @@ function getKey$1(t, context) {
         return getKey$1(resolveReference(t, context), context);
     }
     else if (isEnumType(t) || isRecordType(t)) {
-        return `'${qualifiedName(t)}'`;
+        return context.options.removeNameSpace ? `[${fqnConstantName(t)}]` : `'${qualifiedName(t)}'`;
     }
     else {
         return `'${getTypeName(t, context)}'`;
@@ -690,10 +694,14 @@ function generateClassFieldDeclaration(field, context) {
 function generateClass(type, context) {
     const assignments = type.fields.length === 0
         ? '/* noop */'
-        : type.fields.map((field) => `this.${field.name} = input.${field.name};`).join('\n');
+        : type.fields
+            .map((field) => {
+            return `this.${field.name} = input.${field.name} === undefined ? null : input.${field.name};`;
+        })
+            .join('\n');
     return `export class ${className(type)} implements ${interfaceName(type)} {
     ${type.fields.map((f) => generateClassFieldDeclaration(f, context)).join('\n')}
-    constructor(input: Partial<${interfaceName(type)}>) {
+    constructor(input: ${interfaceName(type)}) {
       ${assignments}
     }
     ${generateDeserialize(type, context)}
@@ -717,14 +725,21 @@ function generateEnumType(type, context) {
     return generateEnum(type);
 }
 
+function generateFqnConstant(type) {
+    return `export const ${fqnConstantName(type)} = '${qualifiedName(type)}'`;
+}
+
 function generateContent(recordTypes, enumTypes, context) {
     const sortedEnums = enumTypes.sort(alphaComparator);
     const sortedRecords = recordTypes.sort(alphaComparator);
+    const all = [].concat(sortedEnums, sortedRecords);
+    const fqns = context.options.removeNameSpace ? all.map(generateFqnConstant) : [];
     const enums = sortedEnums.map((t) => generateEnumType(t, context));
     const interfaces = sortedRecords.map((t) => generateInterface(t, context));
     const avroWrappers = sortedRecords.map((t) => generateAvroWrapper(t, context));
     const classes = sortedRecords.map((t) => generateClass(t, context));
     return []
+        .concat(fqns)
         .concat(enums)
         .concat(interfaces)
         .concat(avroWrappers)
