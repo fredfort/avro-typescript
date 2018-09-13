@@ -45,9 +45,6 @@ export function generateAvroWrapperFieldType(type: any, context: GeneratorContex
     const itemsType = generateAvroWrapperFieldType(type.items, context)
     return isUnion(type.items) && type.items.length > 1 ? `(${itemsType})[]` : `${itemsType}[]`
   } else if (isUnion(type)) {
-    if (type.length === 1) {
-      return generateAvroWrapperFieldType(type[0], context)
-    }
     const withoutNull = type.filter((t) => (t as any) !== 'null')
     const hasNull = withoutNull.length !== type.length
     const fields = withoutNull

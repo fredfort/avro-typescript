@@ -59,4 +59,7 @@ typings/
 
 # rollup cache
 .rpt2_cache
+
+# test generator stuff
 input.avsc
+output.ts

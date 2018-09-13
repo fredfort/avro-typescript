@@ -17,9 +17,6 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
     }
     return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`
   } else if (isUnion(type)) {
-    if (type.length === 1) {
-      return generateAssignmentValue(type[0], context, inputVar)
-    }
     const hasNull = type.indexOf('null' as any) >= 0
     const withoutNull = type.filter((t) => (t as any) !== 'null')
     let conditions = withoutNull.map((t) => generateCondition(t, context, inputVar))

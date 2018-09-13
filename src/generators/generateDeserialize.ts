@@ -31,16 +31,8 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
   } else if (typeof type === 'string') {
     return generateAssignmentValue(resolveReference(type, context), context, inputVar)
   } else if (isArrayType(type)) {
-    if (isUnion(type.items) && type.items.length > 1) {
-      return `${inputVar}.map((e) => {
-        return ${generateAssignmentValue(type.items, context, 'e')}
-      })`
-    }
     return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`
   } else if (isUnion(type)) {
-    if (type.length === 1) {
-      return generateAssignmentValue(type[0], context, inputVar)
-    }
     const nonNullTypes = type.filter((t) => (t as any) !== 'null')
     const hasNull = nonNullTypes.length !== type.length
     let conditions: string[] = null
