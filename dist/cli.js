@@ -388,17 +388,9 @@ function generateAssignmentValue(type, context, inputVar) {
         return generateAssignmentValue(resolveReference(type, context), context, inputVar);
     }
     else if (isArrayType(type)) {
-        if (isUnion(type.items) && type.items.length > 1) {
-            return `${inputVar}.map((e) => {
-        return ${generateAssignmentValue(type.items, context, 'e')}
-      })`;
-        }
         return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`;
     }
     else if (isUnion(type)) {
-        if (type.length === 1) {
-            return generateAssignmentValue(type[0], context, inputVar);
-        }
         const nonNullTypes = type.filter((t) => t !== 'null');
         const hasNull = nonNullTypes.length !== type.length;
         let conditions = null;
@@ -477,9 +469,6 @@ function generateAvroWrapperFieldType(type, context) {
         return isUnion(type.items) && type.items.length > 1 ? `(${itemsType})[]` : `${itemsType}[]`;
     }
     else if (isUnion(type)) {
-        if (type.length === 1) {
-            return generateAvroWrapperFieldType(type[0], context);
-        }
         const withoutNull = type.filter((t) => t !== 'null');
         const hasNull = withoutNull.length !== type.length;
         const fields = withoutNull
@@ -574,17 +563,9 @@ function generateAssignmentValue$1(type, context, inputVar) {
         return `${qClassName(type, context)}.serialize(${inputVar})`;
     }
     else if (isArrayType(type)) {
-        if (isUnion(type.items) && type.items.length > 1) {
-            return `${inputVar}.map((e) => {
-        return ${generateAssignmentValue$1(type.items, context, 'e')}
-      })`;
-        }
         return `${inputVar}.map((e) => ${generateAssignmentValue$1(type.items, context, 'e')})`;
     }
     else if (isUnion(type)) {
-        if (type.length === 1) {
-            return generateAssignmentValue$1(type[0], context, inputVar);
-        }
         const hasNull = type.indexOf('null') >= 0;
         const withoutNull = type.filter((t) => t !== 'null');
         let conditions = withoutNull.map((t) => generateCondition(t, context, inputVar));
@@ -643,9 +624,6 @@ function generateAssignmentValue$2(type, context, inputVar) {
         return `${inputVar}.map((e) => ${generateAssignmentValue$2(type.items, context, 'e')})`;
     }
     else if (isUnion(type)) {
-        if (type.length === 1) {
-            return generateAssignmentValue$2(type[0], context, inputVar);
-        }
         const hasNull = type.indexOf('null') >= 0;
         const withoutNull = type.filter((t) => t !== 'null');
         let conditions = withoutNull.map((t) => generateCondition(t, context, inputVar));
