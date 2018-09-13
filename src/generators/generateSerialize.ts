@@ -8,6 +8,7 @@ import {
   qClassName,
   className,
   avroWrapperName,
+  fqnConstantName,
 } from './utils'
 import { GeneratorContext } from './typings'
 import { generateAvroWrapperFieldType } from './generateAvroWrapper'
@@ -16,7 +17,7 @@ function getKey(t: any, context: GeneratorContext) {
   if (!isPrimitive(t) && typeof t === 'string') {
     return getKey(resolveReference(t, context), context)
   } else if (isEnumType(t) || isRecordType(t)) {
-    return `'${qualifiedName(t)}'`
+    return context.options.removeNameSpace ? `[${fqnConstantName(t)}]` : `'${qualifiedName(t)}'`
   } else {
     return `'${getTypeName(t, context)}'`
   }

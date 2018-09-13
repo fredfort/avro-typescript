@@ -14,7 +14,8 @@
     "build-cli": "rollup -c rollup.cli.config.js",
     "build": "npm run build-main && npm run build-cli",
     "test": "mocha -r ts-node/register test/*.spec.ts",
-    "tslint": "tslint -c tslint.json 'src/**/*.ts'"
+    "tslint": "tslint -c tslint.json 'src/**/*.ts'",
+    "run-cli": "npm run build && node dist/cli.js -x -c -f input.avsc > output.ts"
   },
   "repository": {
     "type": "git",
@@ -46,6 +47,7 @@
     "typescript": "^3.0.1"
   },
   "dependencies": {
+    "constant-case": "^2.0.0",
     "minimist": "^1.2.0",
     "prettier": "^1.14.2"
   }
