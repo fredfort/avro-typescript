@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "Test",
+  "name": "RecordWithArrays",
   "fields": [
     {
       "name": "simpleArray",

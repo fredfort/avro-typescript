@@ -1,4 +1,4 @@
-export interface Test {
+export interface RecordWithPrimitives {
   bool: boolean
   str: string
   long: number

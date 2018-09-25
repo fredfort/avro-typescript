@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "Test",
+  "name": "RecordWithPrimitives",
   "fields": [
     {
       "name": "bool",

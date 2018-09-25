@@ -1,8 +1,7 @@
 import { expect } from 'chai'
-import { getAvroToTypeScript, getResult, getSchema} from './test.utils'
+import { getAvroToTypeScript, getResult, getSchema } from './test.utils'
 
 describe('TypeScript interface', () => {
-
   it('Should create the correct primitive type', () => {
     const fileName = 'primitive'
     const schema = getSchema(fileName)
@@ -17,39 +16,45 @@ describe('TypeScript interface', () => {
     expect(getAvroToTypeScript(schema)).to.be.equal(expectedResult)
   })
 
-  it('Should create the correct emun types', () => {
+  it('Should create the correct enum types', () => {
     const fileName = 'enum'
     const schema = getSchema(fileName)
     const expectedResult = getResult(fileName)
     expect(getAvroToTypeScript(schema)).to.be.equal(expectedResult)
   })
 
-  it('Should create the correct emun types into string litteral union', () => {
+  it('Should create the correct enum types into string litteral union', () => {
     const fileName = 'enum'
     const schema = getSchema(fileName)
     const expectedResult = getResult('enum_litteral')
-    expect(getAvroToTypeScript(schema, {convertEnumToType: true})).to.be.equal(expectedResult)
+    expect(getAvroToTypeScript(schema, { convertEnumToType: true })).to.be.equal(expectedResult)
   })
 
   it('Should create the correct map type', () => {
     const fileName = 'map'
     const schema = getSchema(fileName)
     const expectedResult = getResult(fileName)
-    expect(getAvroToTypeScript(schema, {convertEnumToType: true})).to.be.equal(expectedResult)
+    expect(getAvroToTypeScript(schema, { convertEnumToType: true })).to.be.equal(expectedResult)
   })
 
   it('Should create the correct interfaces for object with multiple types', () => {
     const fileName = 'multiple-type'
     const schema = getSchema(fileName)
     const expectedResult = getResult(fileName)
-    expect(getAvroToTypeScript(schema, {convertEnumToType: true})).to.be.equal(expectedResult)
+    expect(getAvroToTypeScript(schema, { convertEnumToType: true })).to.be.equal(expectedResult)
   })
 
   it('Should create the correct interfaces for object with namespaces', () => {
     const fileName = 'namespace'
     const schema = getSchema(fileName)
     const expectedResult = getResult(fileName)
-    expect(getAvroToTypeScript(schema, {convertEnumToType: true, removeNameSpace: true})).to.be.equal(expectedResult)
+    expect(getAvroToTypeScript(schema, { convertEnumToType: true, removeNameSpace: true })).to.be.equal(expectedResult)
   })
 
+  it('Should create the correct interfaces for nested union types', () => {
+    const fileName = 'nested-union'
+    const schema = getSchema(fileName)
+    const expectedResult = getResult(fileName)
+    expect(getAvroToTypeScript(schema, { removeNameSpace: true })).to.be.equal(expectedResult)
+  })
 })

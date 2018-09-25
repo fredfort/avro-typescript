@@ -1,6 +1,6 @@
 {
   "name": "create-typescript-from-avro",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "TypeSript code generator for Apache Avro types",
   "main": "./dist/index.js",
   "bin": {
@@ -10,9 +10,12 @@
     "test": "test"
   },
   "scripts": {
-    "build": "tsc -p .",
+    "build-main": "rollup -c rollup.main.config.js",
+    "build-cli": "rollup -c rollup.cli.config.js",
+    "build": "npm run build-main && npm run build-cli",
     "test": "mocha -r ts-node/register test/*.spec.ts",
-    "tslint": "tslint -c tslint.json 'src/**/*.ts'"
+    "tslint": "tslint -c tslint.json 'src/**/*.ts'",
+    "run-cli": "npm run build && node dist/cli.js -x -c -r -f input.avsc > output.ts"
   },
   "repository": {
     "type": "git",
@@ -37,11 +40,15 @@
     "@types/node": "^7.0.69",
     "chai": "^4.1.2",
     "mocha": "^5.2.0",
+    "rollup": "^0.65.0",
+    "rollup-plugin-typescript2": "^0.17.0",
     "ts-node": "^7.0.1",
     "tslint": "^5.11.0",
     "typescript": "^3.0.1"
   },
   "dependencies": {
-    "minimist": "^1.2.0"
+    "constant-case": "^2.0.0",
+    "minimist": "^1.2.0",
+    "prettier": "^1.14.2"
   }
 }
