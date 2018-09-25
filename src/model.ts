@@ -1,7 +1,17 @@
 /**** Contains the Interfaces and Type Guards for Avro schema */
+export const enum EnumVariant {
+  ENUM = 'enum',
+  CONST_ENUM = 'const-enum',
+  STRING = 'string',
+}
+export const enum TypeVariant {
+  CLASSES = 'classes',
+  INTERFACES_ONLY = 'interfaces-only',
+}
 export interface Options {
-  convertEnumToType?: boolean
-  removeNameSpace?: boolean
+  enums: EnumVariant
+  types: TypeVariant
+  namespaces: boolean
 }
 
 const PRIMITIVE_TYPES = ['string', 'boolean', 'long', 'int', 'double', 'float', 'bytes', 'null']
@@ -56,23 +66,23 @@ export interface NamedType extends BaseType {
   type: string
 }
 
-export function isRecordType(type: BaseType): type is RecordType {
-  return type.type === 'record'
+export function isRecordType(type: any): type is RecordType {
+  return type instanceof Object && type.type === 'record'
 }
 
-export function isArrayType(type: BaseType): type is ArrayType {
-  return type.type === 'array'
+export function isArrayType(type: any): type is ArrayType {
+  return type instanceof Object && type.type === 'array'
 }
 
-export function isMapType(type: BaseType): type is MapType {
-  return type.type === 'map'
+export function isMapType(type: any): type is MapType {
+  return type instanceof Object && type.type === 'map'
 }
 
-export function isEnumType(type: BaseType): type is EnumType {
-  return type.type === 'enum'
+export function isEnumType(type: any): type is EnumType {
+  return type instanceof Object && type.type === 'enum'
 }
 
-export function isUnion(type: Type): type is NamedType[] {
+export function isUnion(type: any): type is NamedType[] {
   return type instanceof Array
 }
 

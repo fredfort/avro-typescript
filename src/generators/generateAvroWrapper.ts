@@ -16,9 +16,9 @@ function getTypeKey(type: any, context: GeneratorContext): string {
   if (isPrimitive(type)) {
     return type
   } else if (isEnumType(type)) {
-    return context.options.removeNameSpace ? `[${fqnConstantName(type)}]` : qualifiedName(type, enumName)
+    return context.options.namespaces ? qualifiedName(type, enumName) : `[${fqnConstantName(type)}]`
   } else if (isRecordType(type)) {
-    return context.options.removeNameSpace ? `[${fqnConstantName(type)}]` : qualifiedName(type, className)
+    return context.options.namespaces ? qualifiedName(type, className) : `[${fqnConstantName(type)}]`
   } else if (isArrayType(type) || isMapType(type)) {
     return type.type
   } else if (typeof type === 'string') {

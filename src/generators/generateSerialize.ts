@@ -1,4 +1,14 @@
-import { RecordType, Field, isPrimitive, isEnumType, isRecordType, isArrayType, isUnion, isMapType } from '../model'
+import {
+  RecordType,
+  Field,
+  isPrimitive,
+  isEnumType,
+  isRecordType,
+  isArrayType,
+  isUnion,
+  isMapType,
+  TypeVariant,
+} from '../model'
 import {
   asSelfExecuting,
   joinConditional,
@@ -9,6 +19,10 @@ import {
   className,
   avroWrapperName,
   fqnConstantName,
+  qTypeGuardName,
+  serialiserName,
+  interfaceName,
+  qSerialiserName,
 } from './utils'
 import { GeneratorContext } from './typings'
 import { generateAvroWrapperFieldType } from './generateAvroWrapper'
@@ -17,7 +31,7 @@ function getKey(t: any, context: GeneratorContext) {
   if (!isPrimitive(t) && typeof t === 'string') {
     return getKey(resolveReference(t, context), context)
   } else if (isEnumType(t) || isRecordType(t)) {
-    return context.options.removeNameSpace ? `[${fqnConstantName(t)}]` : `'${qualifiedName(t)}'`
+    return context.options.namespaces ? `'${qualifiedName(t)}'` : `[${fqnConstantName(t)}]`
   } else {
     return `'${getTypeName(t, context)}'`
   }
@@ -42,6 +56,12 @@ export function generateCondition(type: any, context: GeneratorContext, inputVar
   } else if (isArrayType(type)) {
     return `Array.isArray(${inputVar})`
   } else if (isRecordType(type)) {
+    switch (context.options.types) {
+      case TypeVariant.CLASSES:
+        return `${inputVar} instanceof ${qClassName(type, context)}`
+      case TypeVariant.INTERFACES_ONLY:
+        return `${qTypeGuardName(type, context)}(${inputVar})`
+    }
     return `${inputVar} instanceof ${qClassName(type, context)}`
   } else if (isEnumType(type)) {
     return `typeof ${inputVar} === 'string' && [${type.symbols
@@ -69,7 +89,12 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
   if (isPrimitive(type) || isEnumType(type)) {
     return inputVar
   } else if (isRecordType(type)) {
-    return `${qClassName(type, context)}.serialize(${inputVar})`
+    switch (context.options.types) {
+      case TypeVariant.CLASSES:
+        return `${qClassName(type, context)}.serialize(${inputVar})`
+      case TypeVariant.INTERFACES_ONLY:
+        return `${qSerialiserName(type, context)}(${inputVar})`
+    }
   } else if (isArrayType(type)) {
     return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`
   } else if (isUnion(type)) {
@@ -103,13 +128,30 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
 }
 
 function generateFieldAssginment(field: Field, context: GeneratorContext): string {
-  return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)}`
+  return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)},`
 }
 
-export function generateSerialize(type: RecordType, context: GeneratorContext): string {
+function generateStaticClassMethod(type: RecordType, context: GeneratorContext): string {
   return `public static serialize(input: ${className(type)}): ${avroWrapperName(type)} {
     return {
-      ${type.fields.map((field) => generateFieldAssginment(field, context)).join(',\n')}
+      ${type.fields.map((field) => generateFieldAssginment(field, context)).join('\n')}
     }
   }`
+}
+
+function generateStandaloneMethod(type: RecordType, context: GeneratorContext): string {
+  return `export function ${serialiserName(type)}(input: ${interfaceName(type)}): ${avroWrapperName(type)} {
+    return {
+      ${type.fields.map((field) => generateFieldAssginment(field, context)).join('\n')}
+    }
+  }`
+}
+
+export function generateSerialize(type: RecordType, context: GeneratorContext) {
+  switch (context.options.types) {
+    case TypeVariant.CLASSES:
+      return generateStaticClassMethod(type, context)
+    case TypeVariant.INTERFACES_ONLY:
+      return generateStandaloneMethod(type, context)
+  }
 }

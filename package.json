@@ -15,7 +15,7 @@
     "build": "npm run build-main && npm run build-cli",
     "test": "mocha -r ts-node/register test/*.spec.ts",
     "tslint": "tslint -c tslint.json 'src/**/*.ts'",
-    "run-cli": "npm run build && node dist/cli.js -x -c -r -f input.avsc > output.ts"
+    "run-cli": "npm run build && node dist/cli.js -e const-enum -n -f input.avsc > output.ts"
   },
   "repository": {
     "type": "git",
@@ -34,6 +34,7 @@
   },
   "homepage": "https://github.com/fredfort/avro-typescript#readme",
   "devDependencies": {
+    "@types/argparse": "^1.0.34",
     "@types/chai": "^4.1.4",
     "@types/minimist": "^1.2.0",
     "@types/mocha": "^5.2.5",
@@ -47,8 +48,8 @@
     "typescript": "^3.0.1"
   },
   "dependencies": {
+    "argparse": "^1.0.10",
     "constant-case": "^2.0.0",
-    "minimist": "^1.2.0",
     "prettier": "^1.14.2"
   }
 }

@@ -1,21 +1,59 @@
-import { RecordType, isEnumType, isRecordType, isArrayType, isUnion, isPrimitive, isMapType, Field } from '../model'
+import {
+  RecordType,
+  isEnumType,
+  isRecordType,
+  isArrayType,
+  isUnion,
+  isPrimitive,
+  isMapType,
+  Field,
+  TypeVariant,
+  ArrayType,
+} from '../model'
 import { GeneratorContext } from './typings'
 import { generateCondition } from './generateSerialize'
-import { className, qClassName, joinConditional, asSelfExecuting, resolveReference } from './utils'
+import {
+  className,
+  qClassName,
+  joinConditional,
+  asSelfExecuting,
+  resolveReference,
+  cloneName,
+  interfaceName,
+  qCloneName,
+} from './utils'
 import { generateFieldType } from './generateFieldType'
+
+// Handling the case when cloning an array of record type. This saves extra function creations
+function generateArrayClone(type: ArrayType, context: GeneratorContext, inputVar: string): string {
+  let items = type.items as any
+  if (isUnion(items)) {
+    return `${inputVar}.map((e) => {
+      return ${generateAssignmentValue(items, context, 'e')}
+    })`
+  }
+  if (typeof items === 'string') {
+    items = resolveReference(items, context)
+  }
+  if (isRecordType(items) && context.options.types === TypeVariant.INTERFACES_ONLY) {
+    return `${inputVar}.map(${qCloneName(items, context)})`
+  }
+  return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`
+}
 
 function generateAssignmentValue(type: any, context: GeneratorContext, inputVar: string): string {
   if (isPrimitive(type) || isEnumType(type)) {
     return inputVar
   } else if (isRecordType(type)) {
-    return `${qClassName(type, context)}.clone(${inputVar})`
-  } else if (isArrayType(type)) {
-    if (isUnion(type.items) && type.items.length > 1) {
-      return `${inputVar}.map((e) => {
-        return ${generateAssignmentValue(type.items, context, 'e')}
-      })`
+    switch (context.options.types) {
+      case TypeVariant.CLASSES:
+        return `${qClassName(type, context)}.clone(${inputVar})`
+      case TypeVariant.INTERFACES_ONLY:
+        return `${qCloneName(type, context)}(${inputVar})`
     }
-    return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`
+    return
+  } else if (isArrayType(type)) {
+    return generateArrayClone(type, context, inputVar)
   } else if (isUnion(type)) {
     const hasNull = type.indexOf('null' as any) >= 0
     const withoutNull = type.filter((t) => (t as any) !== 'null')
@@ -50,10 +88,27 @@ function generateFieldAssginment(field: Field, context: GeneratorContext): strin
   return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)}`
 }
 
-export function generateClone(type: RecordType, context: GeneratorContext): string {
+function generateStaticClassMethod(type: RecordType, context: GeneratorContext): string {
   return `public static clone(input: ${className(type)}): ${className(type)} {
     return new ${className(type)}({
       ${type.fields.map((field) => generateFieldAssginment(field, context)).join(',\n')}
     })
   }`
+}
+
+function generateStandaloneMethod(type: RecordType, context: GeneratorContext): string {
+  return `export function ${cloneName(type)}(input: ${interfaceName(type)}): ${interfaceName(type)} {
+    return {
+      ${type.fields.map((field) => generateFieldAssginment(field, context)).join(',\n')}
+    }
+  }`
+}
+
+export function generateClone(type: RecordType, context: GeneratorContext): string {
+  switch (context.options.types) {
+    case TypeVariant.CLASSES:
+      return generateStaticClassMethod(type, context)
+    case TypeVariant.INTERFACES_ONLY:
+      return generateStandaloneMethod(type, context)
+  }
 }

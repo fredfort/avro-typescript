@@ -1,15 +1,12 @@
 import { readFileSync, lstatSync, existsSync, readdirSync } from 'fs'
 import { resolve, extname, join, basename } from 'path'
-import { avroToTypeScript, RecordType } from './index'
 import { generateAll } from './generators/generateAll'
 import prettier from 'prettier'
-const minimist = require('minimist')
+import { RecordType, Options } from './model'
+import { parser } from './parser'
 
-interface Args {
-  file: string | string[]
-  convertEnumToType: boolean
-  removeNameSpace: boolean
-  customMode: boolean
+interface Args extends Options {
+  files: string[]
 }
 
 function collectFiles(filePath: string, accumulated: string[]): string[] {
@@ -26,28 +23,19 @@ function collectFiles(filePath: string, accumulated: string[]): string[] {
   return accumulated
 }
 
-function collectAllFiles({ file }: Args): string[] {
-  if (file === undefined) {
+function collectAllFiles({ files }: Args): string[] {
+  if (files === undefined) {
     throw new TypeError('Argument --file or -f should be provided!')
   }
 
-  const inputFiles: string[] = Array.isArray(file) ? file : [file]
-  const rawFiles = inputFiles.map((f) => resolve(f))
+  const rawFiles = files.map((f) => resolve(f))
   const allFiles = []
   rawFiles.forEach((rawFile) => collectFiles(rawFile, allFiles))
   return allFiles
 }
 
 function generateContent(schema: RecordType, args: Args): string {
-  const options = {
-    convertEnumToType: Boolean(args.convertEnumToType),
-    removeNameSpace: Boolean(args.removeNameSpace),
-  }
-  if (Boolean(args.customMode)) {
-    return generateAll(schema, options)
-  } else {
-    return avroToTypeScript(schema, options)
-  }
+  return generateAll(schema, args)
 }
 
 function convertAndSendToStdout(files: string[], args: Args) {
@@ -73,13 +61,7 @@ function convertAndSendToStdout(files: string[], args: Args) {
   process.stdout.write(formattedSource)
 }
 
-const [, , ...valuableArgs] = process.argv
-
-const parsedArgs: Args = minimist(valuableArgs, {
-  alias: { f: 'file', c: 'convertEnumToType', r: 'removeNameSpace', x: 'customMode' },
-  string: ['files'],
-  boolean: ['convertEnumToType', 'removeNameSpace'],
-})
+const parsedArgs: Args = parser.parseArgs()
 
 const allRelevantFiles = collectAllFiles(parsedArgs)
 convertAndSendToStdout(allRelevantFiles, parsedArgs)

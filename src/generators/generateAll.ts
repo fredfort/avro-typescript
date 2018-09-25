@@ -61,9 +61,7 @@ export function generateAll(record: RecordType, options: Options): string {
   const allNamedTypes: HasName[] = [].concat(enumTypes, recordTypes)
   context.nameToTypeMapping = getNameToTypeMapping(allNamedTypes)
 
-  if (options.removeNameSpace) {
-    return generateContent(recordTypes, enumTypes, context)
-  } else {
+  if (options.namespaces) {
     const namespaces = Array.from(collectNamespaces(allNamedTypes))
     const recordsGrouped = groupByNamespace(recordTypes)
     const enumsGrouped = groupByNamespace(enumTypes)
@@ -71,5 +69,7 @@ export function generateAll(record: RecordType, options: Options): string {
       (ns) => [ns, recordsGrouped.get(ns) || [], enumsGrouped.get(ns) || []] as [string, RecordType[], EnumType[]],
     )
     return namespaceTypes.map(([ns, records, enums]) => generateNamespace(ns, records, enums, context)).join('\n')
+  } else {
+    return generateContent(recordTypes, enumTypes, context)
   }
 }

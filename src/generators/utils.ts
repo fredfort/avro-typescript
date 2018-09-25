@@ -27,15 +27,31 @@ export function enumName(type: EnumType) {
   return type.name
 }
 
+export function typeGuardName(type: RecordType) {
+  return `is${type.name}`
+}
+
+export function cloneName(type: RecordType) {
+  return `clone${type.name}`
+}
+
+export function deserialiserName(type: RecordType) {
+  return `deserialize${type.name}`
+}
+
+export function serialiserName(type: RecordType) {
+  return `serialize${type.name}`
+}
+
 export function fqnConstantName(type: HasName) {
   return `${constantCase(type.name)}_FQN`
 }
 
 function qualifiedNameFor<T extends HasName>(type: T, transform: (T) => string, context: GeneratorContext) {
-  if (context.options.removeNameSpace) {
-    return transform(type)
+  if (context.options.namespaces) {
+    return qualifiedName(type, transform)
   }
-  return qualifiedName(type, transform)
+  return transform(type)
 }
 
 export function qInterfaceName(type: RecordType, context: GeneratorContext) {
@@ -52,6 +68,22 @@ export function qEnumName(type: EnumType, context: GeneratorContext) {
 
 export function qAvroWrapperName(type: RecordType, context: GeneratorContext) {
   return qualifiedNameFor(type, avroWrapperName, context)
+}
+
+export function qTypeGuardName(type: RecordType, context: GeneratorContext) {
+  return qualifiedNameFor(type, typeGuardName, context)
+}
+
+export function qCloneName(type: RecordType, context: GeneratorContext) {
+  return qualifiedNameFor(type, cloneName, context)
+}
+
+export function qDeserialiserName(type: RecordType, context: GeneratorContext) {
+  return qualifiedNameFor(type, deserialiserName, context)
+}
+
+export function qSerialiserName(type: RecordType, context: GeneratorContext) {
+  return qualifiedNameFor(type, serialiserName, context)
 }
 
 export function qualifiedName(type: HasName, transform: (e: HasName) => string = (e) => e.name) {

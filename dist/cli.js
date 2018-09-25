@@ -3,137 +3,29 @@
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
+var argparse = require('argparse');
 var fs = require('fs');
 var path = require('path');
 var prettier = _interopDefault(require('prettier'));
 
 const PRIMITIVE_TYPES = ['string', 'boolean', 'long', 'int', 'double', 'float', 'bytes', 'null'];
 function isRecordType(type) {
-    return type.type === 'record';
+    return type instanceof Object && type.type === 'record';
 }
 function isArrayType(type) {
-    return type.type === 'array';
+    return type instanceof Object && type.type === 'array';
 }
 function isMapType(type) {
-    return type.type === 'map';
+    return type instanceof Object && type.type === 'map';
 }
 function isEnumType(type) {
-    return type.type === 'enum';
+    return type instanceof Object && type.type === 'enum';
 }
 function isUnion(type) {
     return type instanceof Array;
 }
 function isPrimitive(type) {
     return PRIMITIVE_TYPES.indexOf(type) >= 0;
-}
-function isOptional(type) {
-    if (isUnion(type)) {
-        const t1 = type[0];
-        if (typeof t1 === 'string') {
-            return t1 === 'null';
-        }
-    }
-}
-
-/*Global variable */
-let options = {
-    convertEnumToType: false,
-    removeNameSpace: false,
-};
-/** Converts an Avro record type to a TypeScript file */
-function avroToTypeScript(recordType, userOptions) {
-    const output = [];
-    options = Object.assign({}, options, userOptions);
-    convertRecord(recordType, output);
-    return output.join('\n');
-}
-/** Convert an Avro Record type. Return the name, but add the definition to the file */
-function convertRecord(recordType, fileBuffer) {
-    let buffer = `export interface ${removeNameSpace(recordType.name)} {\n`;
-    for (const field of recordType.fields) {
-        buffer += convertFieldDec(field, fileBuffer) + '\n';
-    }
-    buffer += '}\n';
-    fileBuffer.push(buffer);
-    return recordType.name;
-}
-/** Convert an Avro Enum type. Return the name, but add the definition to the file */
-function convertEnum(enumType, fileBuffer) {
-    const enumDef = `export enum ${enumType.name} { ${enumType.symbols
-        .join(', ')} }\n`;
-    fileBuffer.push(enumDef);
-    return enumType.name;
-}
-/** Convert an Avro string litteral type. Return the name, but add the definition to the file */
-function convertEnumToType(enumType, fileBuffer) {
-    const enumDef = `export type ${enumType.name}  =  ${enumType.symbols
-        .map((symbol) => `'${symbol}'`)
-        .join(' | ')}\n`;
-    fileBuffer.push(enumDef);
-    return enumType.name;
-}
-function convertType(type, buffer) {
-    // if it's just a name, then use that
-    if (typeof type === 'string') {
-        return convertPrimitive(type) || removeNameSpace(type);
-    }
-    else if (type instanceof Array) {
-        // array means a Union. Use the names and call recursively
-        return type.map((t) => removeNameSpace(convertType(t, buffer))).join(' | ');
-    }
-    else if (isRecordType(type)) {
-        // } type)) {
-        // record, use the name and add to the buffer
-        return convertRecord(type, buffer);
-    }
-    else if (isArrayType(type)) {
-        // array, call recursively for the array element type
-        if ([].concat(type.items).length === 1) {
-            return `${convertType(type.items, buffer)}[]`;
-        }
-        return `(${convertType(type.items, buffer)})[]`;
-    }
-    else if (isMapType(type)) {
-        // Dictionary of types, string as key
-        return `{ [index:string]:${convertType(type.values, buffer)} }`;
-    }
-    else if (isEnumType(type)) {
-        // array, call recursively for the array element type
-        return options.convertEnumToType
-            ? convertEnumToType(type, buffer)
-            : convertEnum(type, buffer);
-    }
-    else {
-        console.error('Cannot work out type', type);
-        return 'UNKNOWN';
-    }
-}
-/** Convert a primitive type from avro to TypeScript */
-function convertPrimitive(avroType) {
-    switch (avroType) {
-        case 'long':
-        case 'int':
-        case 'double':
-        case 'float':
-            return 'number';
-        case 'bytes':
-            return 'Buffer';
-        case 'null':
-            return 'null | undefined';
-        case 'boolean':
-            return 'boolean';
-        default:
-            return null;
-    }
-}
-function removeNameSpace(value) {
-    return !options.removeNameSpace || value.indexOf('.') === -1
-        ? value
-        : value.split('.')[value.split('.').length - 1];
-}
-function convertFieldDec(field, buffer) {
-    // Union Type
-    return `\t${field.name}${isOptional(field.type) ? '?' : ''}: ${convertType(field.type, buffer)}`;
 }
 
 class FqnResolver {
@@ -238,14 +130,26 @@ function className(type) {
 function enumName(type) {
     return type.name;
 }
+function typeGuardName(type) {
+    return `is${type.name}`;
+}
+function cloneName(type) {
+    return `clone${type.name}`;
+}
+function deserialiserName(type) {
+    return `deserialize${type.name}`;
+}
+function serialiserName(type) {
+    return `serialize${type.name}`;
+}
 function fqnConstantName(type) {
     return `${constantCase(type.name)}_FQN`;
 }
 function qualifiedNameFor(type, transform, context) {
-    if (context.options.removeNameSpace) {
-        return transform(type);
+    if (context.options.namespaces) {
+        return qualifiedName(type, transform);
     }
-    return qualifiedName(type, transform);
+    return transform(type);
 }
 function qInterfaceName(type, context) {
     return qualifiedNameFor(type, interfaceName, context);
@@ -258,6 +162,18 @@ function qEnumName(type, context) {
 }
 function qAvroWrapperName(type, context) {
     return qualifiedNameFor(type, avroWrapperName, context);
+}
+function qTypeGuardName(type, context) {
+    return qualifiedNameFor(type, typeGuardName, context);
+}
+function qCloneName(type, context) {
+    return qualifiedNameFor(type, cloneName, context);
+}
+function qDeserialiserName(type, context) {
+    return qualifiedNameFor(type, deserialiserName, context);
+}
+function qSerialiserName(type, context) {
+    return qualifiedNameFor(type, serialiserName, context);
 }
 function qualifiedName(type, transform = (e) => e.name) {
     return type.namespace ? `${type.namespace}.${transform(type)}` : transform(type);
@@ -371,24 +287,45 @@ function getKey(t, context) {
         return getKey(resolveReference(t, context), context);
     }
     else if (isEnumType(t) || isRecordType(t)) {
-        return context.options.removeNameSpace ? fqnConstantName(t) : `'${qualifiedName(t)}'`;
+        return context.options.namespaces ? `'${qualifiedName(t)}'` : fqnConstantName(t);
     }
     else {
         return `'${getTypeName(t, context)}'`;
     }
+}
+// Handling the case when cloning an array of record type. This saves extra function creations
+function generateArrayDeserialize(type, context, inputVar) {
+    let items = type.items;
+    if (isUnion(items)) {
+        return `${inputVar}.map((e) => {
+      return ${generateAssignmentValue(items, context, 'e')}
+    })`;
+    }
+    if (typeof items === 'string') {
+        items = resolveReference(items, context);
+    }
+    if (isRecordType(items) && context.options.types === "interfaces-only" /* INTERFACES_ONLY */) {
+        return `${inputVar}.map(${qDeserialiserName(items, context)})`;
+    }
+    return `${inputVar}.map((e) => ${generateAssignmentValue(items, context, 'e')})`;
 }
 function generateAssignmentValue(type, context, inputVar) {
     if ((typeof type === 'string' && isPrimitive(type)) || isEnumType(type)) {
         return `${inputVar}`;
     }
     else if (isRecordType(type)) {
-        return `${qClassName(type, context)}.deserialize(${inputVar})`;
+        switch (context.options.types) {
+            case "classes" /* CLASSES */:
+                return `${qClassName(type, context)}.deserialize(${inputVar})`;
+            case "interfaces-only" /* INTERFACES_ONLY */:
+                return `${qDeserialiserName(type, context)}(${inputVar})`;
+        }
     }
     else if (typeof type === 'string') {
         return generateAssignmentValue(resolveReference(type, context), context, inputVar);
     }
     else if (isArrayType(type)) {
-        return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`;
+        return generateArrayDeserialize(type, context, inputVar);
     }
     else if (isUnion(type)) {
         const nonNullTypes = type.filter((t) => t !== 'null');
@@ -422,12 +359,27 @@ function generateAssignmentValue(type, context, inputVar) {
 function generateDeserializeFieldAssignment(field, context) {
     return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)},`;
 }
-function generateDeserialize(type, context) {
+function generateStaticClassMethod(type, context) {
     return `public static deserialize(input: ${avroWrapperName(type)}): ${className(type)} {
     return new ${className(type)}({
       ${type.fields.map((f) => generateDeserializeFieldAssignment(f, context)).join('\n')}
     })
   }`;
+}
+function generateStandaloneMethod(type, context) {
+    return `export function ${deserialiserName(type)}(input: ${avroWrapperName(type)}): ${interfaceName(type)} {
+    return {
+      ${type.fields.map((field) => generateDeserializeFieldAssignment(field, context)).join('\n')}
+    }
+  }`;
+}
+function generateDeserialize(type, context) {
+    switch (context.options.types) {
+        case "classes" /* CLASSES */:
+            return generateStaticClassMethod(type, context);
+        case "interfaces-only" /* INTERFACES_ONLY */:
+            return generateStandaloneMethod(type, context);
+    }
 }
 
 function getTypeKey(type, context) {
@@ -435,10 +387,10 @@ function getTypeKey(type, context) {
         return type;
     }
     else if (isEnumType(type)) {
-        return context.options.removeNameSpace ? `[${fqnConstantName(type)}]` : qualifiedName(type, enumName);
+        return context.options.namespaces ? qualifiedName(type, enumName) : `[${fqnConstantName(type)}]`;
     }
     else if (isRecordType(type)) {
-        return context.options.removeNameSpace ? `[${fqnConstantName(type)}]` : qualifiedName(type, className);
+        return context.options.namespaces ? qualifiedName(type, className) : `[${fqnConstantName(type)}]`;
     }
     else if (isArrayType(type) || isMapType(type)) {
         return type.type;
@@ -502,7 +454,7 @@ function getKey$1(t, context) {
         return getKey$1(resolveReference(t, context), context);
     }
     else if (isEnumType(t) || isRecordType(t)) {
-        return context.options.removeNameSpace ? `[${fqnConstantName(t)}]` : `'${qualifiedName(t)}'`;
+        return context.options.namespaces ? `'${qualifiedName(t)}'` : `[${fqnConstantName(t)}]`;
     }
     else {
         return `'${getTypeName(t, context)}'`;
@@ -529,6 +481,12 @@ function generateCondition(type, context, inputVar) {
         return `Array.isArray(${inputVar})`;
     }
     else if (isRecordType(type)) {
+        switch (context.options.types) {
+            case "classes" /* CLASSES */:
+                return `${inputVar} instanceof ${qClassName(type, context)}`;
+            case "interfaces-only" /* INTERFACES_ONLY */:
+                return `${qTypeGuardName(type, context)}(${inputVar})`;
+        }
         return `${inputVar} instanceof ${qClassName(type, context)}`;
     }
     else if (isEnumType(type)) {
@@ -560,7 +518,12 @@ function generateAssignmentValue$1(type, context, inputVar) {
         return inputVar;
     }
     else if (isRecordType(type)) {
-        return `${qClassName(type, context)}.serialize(${inputVar})`;
+        switch (context.options.types) {
+            case "classes" /* CLASSES */:
+                return `${qClassName(type, context)}.serialize(${inputVar})`;
+            case "interfaces-only" /* INTERFACES_ONLY */:
+                return `${qSerialiserName(type, context)}(${inputVar})`;
+        }
     }
     else if (isArrayType(type)) {
         return `${inputVar}.map((e) => ${generateAssignmentValue$1(type.items, context, 'e')})`;
@@ -598,30 +561,62 @@ function generateAssignmentValue$1(type, context, inputVar) {
     }
 }
 function generateFieldAssginment(field, context) {
-    return `${field.name}: ${generateAssignmentValue$1(field.type, context, `input.${field.name}`)}`;
+    return `${field.name}: ${generateAssignmentValue$1(field.type, context, `input.${field.name}`)},`;
 }
-function generateSerialize(type, context) {
+function generateStaticClassMethod$1(type, context) {
     return `public static serialize(input: ${className(type)}): ${avroWrapperName(type)} {
     return {
-      ${type.fields.map((field) => generateFieldAssginment(field, context)).join(',\n')}
+      ${type.fields.map((field) => generateFieldAssginment(field, context)).join('\n')}
     }
   }`;
 }
+function generateStandaloneMethod$1(type, context) {
+    return `export function ${serialiserName(type)}(input: ${interfaceName(type)}): ${avroWrapperName(type)} {
+    return {
+      ${type.fields.map((field) => generateFieldAssginment(field, context)).join('\n')}
+    }
+  }`;
+}
+function generateSerialize(type, context) {
+    switch (context.options.types) {
+        case "classes" /* CLASSES */:
+            return generateStaticClassMethod$1(type, context);
+        case "interfaces-only" /* INTERFACES_ONLY */:
+            return generateStandaloneMethod$1(type, context);
+    }
+}
 
+// Handling the case when cloning an array of record type. This saves extra function creations
+function generateArrayClone(type, context, inputVar) {
+    let items = type.items;
+    if (isUnion(items)) {
+        return `${inputVar}.map((e) => {
+      return ${generateAssignmentValue$2(items, context, 'e')}
+    })`;
+    }
+    if (typeof items === 'string') {
+        items = resolveReference(items, context);
+    }
+    if (isRecordType(items) && context.options.types === "interfaces-only" /* INTERFACES_ONLY */) {
+        return `${inputVar}.map(${qCloneName(items, context)})`;
+    }
+    return `${inputVar}.map((e) => ${generateAssignmentValue$2(type.items, context, 'e')})`;
+}
 function generateAssignmentValue$2(type, context, inputVar) {
     if (isPrimitive(type) || isEnumType(type)) {
         return inputVar;
     }
     else if (isRecordType(type)) {
-        return `${qClassName(type, context)}.clone(${inputVar})`;
+        switch (context.options.types) {
+            case "classes" /* CLASSES */:
+                return `${qClassName(type, context)}.clone(${inputVar})`;
+            case "interfaces-only" /* INTERFACES_ONLY */:
+                return `${qCloneName(type, context)}(${inputVar})`;
+        }
+        return;
     }
     else if (isArrayType(type)) {
-        if (isUnion(type.items) && type.items.length > 1) {
-            return `${inputVar}.map((e) => {
-        return ${generateAssignmentValue$2(type.items, context, 'e')}
-      })`;
-        }
-        return `${inputVar}.map((e) => ${generateAssignmentValue$2(type.items, context, 'e')})`;
+        return generateArrayClone(type, context, inputVar);
     }
     else if (isUnion(type)) {
         const hasNull = type.indexOf('null') >= 0;
@@ -658,12 +653,27 @@ function generateAssignmentValue$2(type, context, inputVar) {
 function generateFieldAssginment$1(field, context) {
     return `${field.name}: ${generateAssignmentValue$2(field.type, context, `input.${field.name}`)}`;
 }
-function generateClone(type, context) {
+function generateStaticClassMethod$2(type, context) {
     return `public static clone(input: ${className(type)}): ${className(type)} {
     return new ${className(type)}({
       ${type.fields.map((field) => generateFieldAssginment$1(field, context)).join(',\n')}
     })
   }`;
+}
+function generateStandaloneMethod$2(type, context) {
+    return `export function ${cloneName(type)}(input: ${interfaceName(type)}): ${interfaceName(type)} {
+    return {
+      ${type.fields.map((field) => generateFieldAssginment$1(field, context)).join(',\n')}
+    }
+  }`;
+}
+function generateClone(type, context) {
+    switch (context.options.types) {
+        case "classes" /* CLASSES */:
+            return generateStaticClassMethod$2(type, context);
+        case "interfaces-only" /* INTERFACES_ONLY */:
+            return generateStandaloneMethod$2(type, context);
+    }
 }
 
 function generateClassFieldDeclaration(field, context) {
@@ -693,36 +703,73 @@ function generateEnum(type) {
     ${type.symbols.map((symbol) => `${symbol} = '${symbol}'`).join(',\n')}
   }`;
 }
+function generateConstEnum(type) {
+    return `export const enum ${enumName(type)} {
+    ${type.symbols.map((symbol) => `${symbol} = '${symbol}'`).join(',\n')}
+  }`;
+}
 function generateStringUnion(type) {
     return `export type ${enumName(type)} = ${type.symbols.map((symbol) => `'${symbol}'`).join(' | ')}`;
 }
 function generateEnumType(type, context) {
-    if (context.options.convertEnumToType) {
-        return generateStringUnion(type);
+    switch (context.options.enums) {
+        case "enum" /* ENUM */:
+            return generateEnum(type);
+        case "const-enum" /* CONST_ENUM */:
+            return generateConstEnum(type);
+        case "string" /* STRING */:
+            return generateStringUnion(type);
     }
-    return generateEnum(type);
 }
 
 function generateFqnConstant(type) {
     return `export const ${fqnConstantName(type)} = '${qualifiedName(type)}'`;
 }
 
+function generateFieldPresenceChecks(type) {
+    return type.fields.map((field) => `input.${field.name} !== undefined`).join(' && ');
+}
+function generateTypeGuard(type, context) {
+    const extraChecks = type.fields.length === 0 ? '' : ` && ${generateFieldPresenceChecks(type)}`;
+    return `export function ${typeGuardName(type)}(input: any): input is ${interfaceName(type)} {
+    return input instanceof Object${extraChecks} && Object.keys(input).length === ${type.fields.length}
+  }`;
+}
+
 function generateContent(recordTypes, enumTypes, context) {
     const sortedEnums = enumTypes.sort(alphaComparator);
     const sortedRecords = recordTypes.sort(alphaComparator);
     const all = [].concat(sortedEnums, sortedRecords);
-    const fqns = context.options.removeNameSpace ? all.map(generateFqnConstant) : [];
+    const fqns = context.options.namespaces ? [] : all.map(generateFqnConstant);
     const enums = sortedEnums.map((t) => generateEnumType(t, context));
     const interfaces = sortedRecords.map((t) => generateInterface(t, context));
     const avroWrappers = sortedRecords.map((t) => generateAvroWrapper(t, context));
-    const classes = sortedRecords.map((t) => generateClass(t, context));
-    return []
-        .concat(fqns)
-        .concat(enums)
-        .concat(interfaces)
-        .concat(avroWrappers)
-        .concat(classes)
-        .join('\n');
+    switch (context.options.types) {
+        case "classes" /* CLASSES */: {
+            const classes = sortedRecords.map((t) => generateClass(t, context));
+            return []
+                .concat(fqns)
+                .concat(enums)
+                .concat(interfaces)
+                .concat(avroWrappers)
+                .concat(classes)
+                .join('\n');
+        }
+        case "interfaces-only" /* INTERFACES_ONLY */: {
+            const typeGuards = sortedRecords.map((t) => generateTypeGuard(t, context));
+            const deserializers = sortedRecords.map((t) => generateDeserialize(t, context));
+            const serializers = sortedRecords.map((t) => generateSerialize(t, context));
+            return []
+                .concat(fqns)
+                .concat(enums)
+                .concat(interfaces)
+                .concat(avroWrappers)
+                .concat(typeGuards)
+                .concat(deserializers)
+                .concat(serializers)
+                .join('\n');
+        }
+    }
 }
 
 function generateNamespace(namespace, records, enums, context) {
@@ -782,19 +829,50 @@ function generateAll(record, options) {
     const recordTypes = getAllRecordTypes(type, []);
     const allNamedTypes = [].concat(enumTypes, recordTypes);
     context.nameToTypeMapping = getNameToTypeMapping(allNamedTypes);
-    if (options.removeNameSpace) {
-        return generateContent(recordTypes, enumTypes, context);
-    }
-    else {
+    if (options.namespaces) {
         const namespaces = Array.from(collectNamespaces(allNamedTypes));
         const recordsGrouped = groupByNamespace(recordTypes);
         const enumsGrouped = groupByNamespace(enumTypes);
         const namespaceTypes = namespaces.map((ns) => [ns, recordsGrouped.get(ns) || [], enumsGrouped.get(ns) || []]);
         return namespaceTypes.map(([ns, records, enums]) => generateNamespace(ns, records, enums, context)).join('\n');
     }
+    else {
+        return generateContent(recordTypes, enumTypes, context);
+    }
 }
 
-const minimist = require('minimist');
+const parser = new argparse.ArgumentParser({
+    description: 'Avro schema to TypeScript generator'
+});
+parser.addArgument(['--file', '-f'], {
+    required: true,
+    action: 'append',
+    dest: 'files',
+    help: 'Path to the .avsc file(s) to be consumed.',
+});
+parser.addArgument(['--enums', '-e'], {
+    required: false,
+    dest: 'enums',
+    defaultValue: "string" /* STRING */,
+    choices: ["string" /* STRING */, "enum" /* ENUM */, "const-enum" /* CONST_ENUM */],
+    help: 'The type of the generated enums.',
+});
+parser.addArgument(['--types', '-t'], {
+    required: false,
+    dest: 'types',
+    defaultValue: "interfaces-only" /* INTERFACES_ONLY */,
+    choices: ["interfaces-only" /* INTERFACES_ONLY */, "classes" /* CLASSES */],
+    help: 'The type of the generated types.',
+});
+parser.addArgument(['--namespaces', '-n'], {
+    required: false,
+    dest: 'namespaces',
+    action: 'storeTrue',
+    defaultValue: false,
+    choices: ["string" /* STRING */, "enum" /* ENUM */, "const-enum" /* CONST_ENUM */],
+    help: 'Flag indicating if namespaces should be generated or not.',
+});
+
 function collectFiles(filePath, accumulated) {
     if (!fs.existsSync(filePath)) {
         throw new TypeError(`Path "${filePath}" doesn't exist!`);
@@ -809,27 +887,17 @@ function collectFiles(filePath, accumulated) {
     }
     return accumulated;
 }
-function collectAllFiles({ file }) {
-    if (file === undefined) {
+function collectAllFiles({ files }) {
+    if (files === undefined) {
         throw new TypeError('Argument --file or -f should be provided!');
     }
-    const inputFiles = Array.isArray(file) ? file : [file];
-    const rawFiles = inputFiles.map((f) => path.resolve(f));
+    const rawFiles = files.map((f) => path.resolve(f));
     const allFiles = [];
     rawFiles.forEach((rawFile) => collectFiles(rawFile, allFiles));
     return allFiles;
 }
 function generateContent$1(schema, args) {
-    const options = {
-        convertEnumToType: Boolean(args.convertEnumToType),
-        removeNameSpace: Boolean(args.removeNameSpace),
-    };
-    if (Boolean(args.customMode)) {
-        return generateAll(schema, options);
-    }
-    else {
-        return avroToTypeScript(schema, options);
-    }
+    return generateAll(schema, args);
 }
 function convertAndSendToStdout(files, args) {
     const source = files
@@ -853,11 +921,6 @@ function convertAndSendToStdout(files, args) {
     });
     process.stdout.write(formattedSource);
 }
-const [, , ...valuableArgs] = process.argv;
-const parsedArgs = minimist(valuableArgs, {
-    alias: { f: 'file', c: 'convertEnumToType', r: 'removeNameSpace', x: 'customMode' },
-    string: ['files'],
-    boolean: ['convertEnumToType', 'removeNameSpace'],
-});
+const parsedArgs = parser.parseArgs();
 const allRelevantFiles = collectAllFiles(parsedArgs);
 convertAndSendToStdout(allRelevantFiles, parsedArgs);
