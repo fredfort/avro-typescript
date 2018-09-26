@@ -463,12 +463,11 @@ function generateCondition(type, context, inputVar) {
                 return `typeof ${inputVar} === 'boolean'`;
             case 'int':
             case 'long':
-                return `typeof ${inputVar} === 'number' && ${inputVar} % 1 === 0`;
             case 'float':
             case 'double':
-                return `typeof ${inputVar} === 'number' && ${inputVar} % 1 !== 0`;
-            /* case 'bytes':
-              return `typeof ${inputVar} === Buffer` */
+                return `typeof ${inputVar} === 'number'`;
+            case 'bytes':
+                return 'false /* bytes not implemented */';
         }
     }
     else if (isArrayType(type)) {
@@ -835,4 +834,4 @@ function generateAll(record, options) {
     }
 }
 
-exports.avroToTypescript = generateAll;
+exports.avroToTypeScript = generateAll;

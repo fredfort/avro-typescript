@@ -63,3 +63,4 @@ typings/
 # test generator stuff
 input.avsc
 output.ts
+output2.ts

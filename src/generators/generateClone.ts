@@ -9,8 +9,8 @@ import {
   Field,
   TypeVariant,
   ArrayType,
+  GeneratorContext,
 } from '../model'
-import { GeneratorContext } from './typings'
 import { generateCondition } from './generateSerialize'
 import {
   className,

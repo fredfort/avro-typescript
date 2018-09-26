@@ -1,6 +1,5 @@
 import { interfaceName, typeGuardName } from './utils'
-import { RecordType } from '../model'
-import { GeneratorContext } from './typings'
+import { RecordType, GeneratorContext } from '../model'
 
 function generateFieldPresenceChecks(type: RecordType): string {
   return type.fields.map((field) => `input.${field.name} !== undefined`).join(' && ')

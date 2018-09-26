@@ -9,6 +9,7 @@ import {
   RecordType,
   TypeVariant,
   ArrayType,
+  GeneratorContext,
 } from '../model'
 import {
   getTypeName,
@@ -25,7 +26,6 @@ import {
   qDeserialiserName,
 } from './utils'
 import { generateFieldType } from './generateFieldType'
-import { GeneratorContext } from './typings'
 
 function getKey(t: any, context: GeneratorContext) {
   if (!isPrimitive(t) && typeof t === 'string') {

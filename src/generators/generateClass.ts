@@ -1,9 +1,8 @@
-import { RecordType, Field } from '../model'
+import { RecordType, Field, GeneratorContext } from '../model'
 import { className, interfaceName } from './utils'
 import { generateDeserialize } from './generateDeserialize'
 import { generateSerialize } from './generateSerialize'
 import { generateFieldType } from './generateFieldType'
-import { GeneratorContext } from './typings'
 import { generateClone } from './generateClone'
 
 function generateClassFieldDeclaration(field: Field, context: GeneratorContext): string {

@@ -1,6 +1,5 @@
 import { resolveReference, qInterfaceName, qEnumName } from './utils'
-import { isRecordType, isPrimitive, isEnumType, isArrayType, isMapType } from '../model'
-import { GeneratorContext } from './typings'
+import { isRecordType, isPrimitive, isEnumType, isArrayType, isMapType, GeneratorContext } from '../model'
 
 export function generatePrimitive(avroType: string): string {
   switch (avroType) {

@@ -1,7 +1,6 @@
-import { RecordType, Field } from '../model'
+import { RecordType, Field, GeneratorContext } from '../model'
 import { interfaceName } from './utils'
 import { generateFieldType } from './generateFieldType'
-import { GeneratorContext } from './typings'
 
 function generateFieldDeclaration(field: Field, context: GeneratorContext): string {
   return `${field.name}: ${generateFieldType(field.type, context)}`

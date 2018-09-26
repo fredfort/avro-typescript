@@ -1,4 +1,14 @@
-import { RecordType, Field, isEnumType, isRecordType, isArrayType, isUnion, isMapType, isPrimitive } from '../model'
+import {
+  RecordType,
+  Field,
+  isEnumType,
+  isRecordType,
+  isArrayType,
+  isUnion,
+  isMapType,
+  isPrimitive,
+  GeneratorContext,
+} from '../model'
 import {
   avroWrapperName,
   qEnumName,
@@ -9,7 +19,6 @@ import {
   enumName,
   className,
 } from './utils'
-import { GeneratorContext } from './typings'
 import { generatePrimitive } from './generateFieldType'
 
 function getTypeKey(type: any, context: GeneratorContext): string {

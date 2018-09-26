@@ -1,18 +1,38 @@
 import { ArgumentParser } from 'argparse'
-import { EnumVariant, TypeVariant } from './model'
+import { EnumVariant, TypeVariant, SubCommand } from './model'
 
 export const parser = new ArgumentParser({
-  description: 'Avro schema to TypeScript generator'
+  description: 'Avro schema to TypeScript generator',
 })
 
-parser.addArgument(['--file', '-f'], {
+const subParsers = parser.addSubparsers({
+  title: 'subcommands',
+  dest: 'command',
+})
+
+const diagnoseParser = subParsers.addParser(SubCommand.DIAGNOSE.toString(), {
+  description: 'Diagnoses the input file(s), gives suggestions on options.',
+})
+
+diagnoseParser.addArgument(['--file', '-f'], {
   required: true,
   action: 'append',
   dest: 'files',
   help: 'Path to the .avsc file(s) to be consumed.',
 })
 
-parser.addArgument(['--enums', '-e'], {
+const generateParser = subParsers.addParser(SubCommand.GENERATE.toString(), {
+  description: 'Generates TypeScript from the given input file(s).',
+})
+
+generateParser.addArgument(['--file', '-f'], {
+  required: true,
+  action: 'append',
+  dest: 'files',
+  help: 'Path to the .avsc file(s) to be consumed.',
+})
+
+generateParser.addArgument(['--enums', '-e'], {
   required: false,
   dest: 'enums',
   defaultValue: EnumVariant.STRING,
@@ -20,7 +40,7 @@ parser.addArgument(['--enums', '-e'], {
   help: 'The type of the generated enums.',
 })
 
-parser.addArgument(['--types', '-t'], {
+generateParser.addArgument(['--types', '-t'], {
   required: false,
   dest: 'types',
   defaultValue: TypeVariant.INTERFACES_ONLY,
@@ -28,7 +48,7 @@ parser.addArgument(['--types', '-t'], {
   help: 'The type of the generated types.',
 })
 
-parser.addArgument(['--namespaces', '-n'], {
+generateParser.addArgument(['--namespaces', '-n'], {
   required: false,
   dest: 'namespaces',
   action: 'storeTrue',

@@ -1,1 +1,1 @@
-export { generateAll as avroToTypescript } from './generators/generateAll'
+export { generateAll as avroToTypeScript } from './generators/generateAll'

@@ -7,8 +7,10 @@ var argparse = require('argparse');
 var fs = require('fs');
 var path = require('path');
 var prettier = _interopDefault(require('prettier'));
+var chalk = _interopDefault(require('chalk'));
 
 const PRIMITIVE_TYPES = ['string', 'boolean', 'long', 'int', 'double', 'float', 'bytes', 'null'];
+const NUMBER_TYPES = ['long', 'int', 'double', 'float'];
 function isRecordType(type) {
     return type instanceof Object && type.type === 'record';
 }
@@ -26,6 +28,9 @@ function isUnion(type) {
 }
 function isPrimitive(type) {
     return PRIMITIVE_TYPES.indexOf(type) >= 0;
+}
+function isNumericType(type) {
+    return NUMBER_TYPES.indexOf(type) >= 0;
 }
 
 class FqnResolver {
@@ -469,12 +474,11 @@ function generateCondition(type, context, inputVar) {
                 return `typeof ${inputVar} === 'boolean'`;
             case 'int':
             case 'long':
-                return `typeof ${inputVar} === 'number' && ${inputVar} % 1 === 0`;
             case 'float':
             case 'double':
-                return `typeof ${inputVar} === 'number' && ${inputVar} % 1 !== 0`;
-            /* case 'bytes':
-              return `typeof ${inputVar} === Buffer` */
+                return `typeof ${inputVar} === 'number'`;
+            case 'bytes':
+                return 'false /* bytes not implemented */';
         }
     }
     else if (isArrayType(type)) {
@@ -842,29 +846,45 @@ function generateAll(record, options) {
 }
 
 const parser = new argparse.ArgumentParser({
-    description: 'Avro schema to TypeScript generator'
+    description: 'Avro schema to TypeScript generator',
 });
-parser.addArgument(['--file', '-f'], {
+const subParsers = parser.addSubparsers({
+    title: 'subcommands',
+    dest: 'command',
+});
+const diagnoseParser = subParsers.addParser("diagnose" /* DIAGNOSE */.toString(), {
+    description: 'Diagnoses the input file(s), gives suggestions on options.',
+});
+diagnoseParser.addArgument(['--file', '-f'], {
     required: true,
     action: 'append',
     dest: 'files',
     help: 'Path to the .avsc file(s) to be consumed.',
 });
-parser.addArgument(['--enums', '-e'], {
+const generateParser = subParsers.addParser("gen" /* GENERATE */.toString(), {
+    description: 'Generates TypeScript from the given input file(s).',
+});
+generateParser.addArgument(['--file', '-f'], {
+    required: true,
+    action: 'append',
+    dest: 'files',
+    help: 'Path to the .avsc file(s) to be consumed.',
+});
+generateParser.addArgument(['--enums', '-e'], {
     required: false,
     dest: 'enums',
     defaultValue: "string" /* STRING */,
     choices: ["string" /* STRING */, "enum" /* ENUM */, "const-enum" /* CONST_ENUM */],
     help: 'The type of the generated enums.',
 });
-parser.addArgument(['--types', '-t'], {
+generateParser.addArgument(['--types', '-t'], {
     required: false,
     dest: 'types',
     defaultValue: "interfaces-only" /* INTERFACES_ONLY */,
     choices: ["interfaces-only" /* INTERFACES_ONLY */, "classes" /* CLASSES */],
     help: 'The type of the generated types.',
 });
-parser.addArgument(['--namespaces', '-n'], {
+generateParser.addArgument(['--namespaces', '-n'], {
     required: false,
     dest: 'namespaces',
     action: 'storeTrue',
@@ -887,27 +907,18 @@ function collectFiles(filePath, accumulated) {
     }
     return accumulated;
 }
-function collectAllFiles({ files }) {
-    if (files === undefined) {
-        throw new TypeError('Argument --file or -f should be provided!');
-    }
+function getAllFiles(files) {
     const rawFiles = files.map((f) => path.resolve(f));
     const allFiles = [];
     rawFiles.forEach((rawFile) => collectFiles(rawFile, allFiles));
     return allFiles;
 }
-function generateContent$1(schema, args) {
-    return generateAll(schema, args);
+function readSchema(file) {
+    const content = fs.readFileSync(file, 'UTF8');
+    const schema = JSON.parse(content);
+    return schema;
 }
-function convertAndSendToStdout(files, args) {
-    const source = files
-        .map((f) => {
-        const content = fs.readFileSync(f, 'UTF8');
-        const schema = JSON.parse(content);
-        const tsContent = generateContent$1(schema, args);
-        return `// Generated from ${path.basename(f)}\n\n${tsContent}\n`;
-    })
-        .join('\n');
+function writeTypescriptOutput(source) {
     const formattedSource = prettier.format(source, {
         printWidth: 120,
         semi: true,
@@ -921,6 +932,148 @@ function convertAndSendToStdout(files, args) {
     });
     process.stdout.write(formattedSource);
 }
-const parsedArgs = parser.parseArgs();
-const allRelevantFiles = collectAllFiles(parsedArgs);
-convertAndSendToStdout(allRelevantFiles, parsedArgs);
+
+function setsEqual(set1, set2) {
+    if (set1.size !== set2.size)
+        return false;
+    for (var e of set1) {
+        if (!set2.has(e)) {
+            return false;
+        }
+    }
+    return true;
+}
+function getFieldNames(type, context) {
+    return isRecordType(type) ? new Set(type.fields.map((f) => f.name)) : null;
+}
+function ensureTypeResolved(context) {
+    return (type) => {
+        if (!isPrimitive(type) && typeof type === 'string') {
+            return resolveReference(type, context);
+        }
+        return type;
+    };
+}
+function getRecordTypeDiagnostics(owner, field, types, context) {
+    const fieldTypeNames = types
+        .map(ensureTypeResolved(context))
+        .map((type) => [type, getFieldNames(type, context)])
+        .filter(([, names]) => names !== null);
+    const similarTypes = {};
+    for (const [outerType, outerFieldNames] of fieldTypeNames) {
+        const outerName = qualifiedName(outerType, className);
+        similarTypes[outerName] = [];
+        for (const [innerType, innerFieldNames] of fieldTypeNames) {
+            if (outerType === innerType) {
+                continue;
+            }
+            if (setsEqual(outerFieldNames, innerFieldNames)) {
+                const innerName = qualifiedName(innerType, className);
+                if (similarTypes[innerName] && similarTypes[innerName].indexOf(outerName) >= 0) {
+                    continue;
+                }
+                similarTypes[outerName].push(innerName);
+            }
+        }
+    }
+    const diagnostics = [];
+    for (const type of Object.keys(similarTypes)) {
+        const alternatives = similarTypes[type];
+        if (alternatives.length > 0) {
+            diagnostics.push({
+                typeName: qualifiedName(owner, className),
+                fieldName: field.name,
+                alternatives: [type].concat(alternatives),
+                similarity: "FIELD_COUNT" /* FIELD_COUNT */,
+            });
+        }
+    }
+    return diagnostics;
+}
+function getNumberTypeDiagnostics(owner, field, types, context) {
+    const numberTypes = types.filter((type) => isNumericType(type)).map((type) => type);
+    if (numberTypes.length >= 2) {
+        return [
+            {
+                typeName: qClassName(owner, context),
+                alternatives: numberTypes,
+                fieldName: field.name,
+                similarity: "NUMERIC" /* NUMERIC */,
+            },
+        ];
+    }
+    return [];
+}
+function getTypeSimilarityDiagnostics(types, context) {
+    const diagnostics = [];
+    for (const t of types) {
+        for (const f of t.fields) {
+            const { type: fieldType } = f;
+            if (isUnion(fieldType)) {
+                diagnostics.push(...getRecordTypeDiagnostics(t, f, fieldType, context));
+                diagnostics.push(...getNumberTypeDiagnostics(t, f, fieldType, context));
+            }
+            else if (isArrayType(fieldType) && isUnion(fieldType.items)) {
+                diagnostics.push(...getRecordTypeDiagnostics(t, f, fieldType.items, context));
+                diagnostics.push(...getNumberTypeDiagnostics(t, f, fieldType.items, context));
+            }
+            else if (isMapType(fieldType) && isUnion(fieldType.values)) {
+                diagnostics.push(...getRecordTypeDiagnostics(t, f, fieldType.values, context));
+                diagnostics.push(...getNumberTypeDiagnostics(t, f, fieldType.values, context));
+            }
+        }
+    }
+    return diagnostics;
+}
+
+function getBaseMessage(similarity) {
+    const commonMessage = chalk.gray('(these are indistinguishable at runtime)');
+    switch (similarity) {
+        case "FIELD_COUNT" /* FIELD_COUNT */:
+            return `multiple alternatives have the same number of fields with the same name(s) ${commonMessage}`;
+        case "NUMERIC" /* NUMERIC */:
+            return `multiple alternatives are of numeric types ${commonMessage}`;
+    }
+}
+function generateSimilarityReport(diagnostic) {
+    const alternativesStr = diagnostic.alternatives.map((alternative) => `    - ${chalk.gray(alternative)}`).join('\n');
+    const qFieldName = `${chalk.red(diagnostic.typeName)}#${chalk.red(diagnostic.fieldName)}`;
+    return `  ${chalk.red('✖')} In field ${qFieldName} ${getBaseMessage(diagnostic.similarity)}:\n${alternativesStr}`;
+}
+function reportTypeSimilarityDiagnostics(filename, diagnostics) {
+    if (diagnostics.length === 0) {
+        return null;
+    }
+    const reports = diagnostics.map(generateSimilarityReport).join('\n');
+    return `Can't reliably generate ${chalk.bold.yellow('type guards')} from ${chalk.red(filename)} beacuse:\n${reports}`;
+}
+
+function performDiagnostics(filename, record, options) {
+    const context = {
+        options,
+        fqnResolver: new FqnResolver(),
+        nameToTypeMapping: new Map(),
+    };
+    const type = addNamespaces(record, context);
+    const enumTypes = getAllEnumTypes(type, []);
+    const recordTypes = getAllRecordTypes(type, []);
+    const allNamedTypes = [].concat(enumTypes, recordTypes);
+    context.nameToTypeMapping = getNameToTypeMapping(allNamedTypes);
+    const diagnostics = getTypeSimilarityDiagnostics(recordTypes, context);
+    const report = reportTypeSimilarityDiagnostics(filename, diagnostics);
+    process.stderr.write(`${report}\n`);
+}
+
+const args = parser.parseArgs();
+switch (args.command) {
+    case "diagnose" /* DIAGNOSE */:
+        getAllFiles(args.files).forEach((f) => performDiagnostics(f, readSchema(f), args));
+        break;
+    case "gen" /* GENERATE */: {
+        const source = getAllFiles(args.files)
+            .map((f) => `// Generated from ${path.basename(f)}\n\n${generateAll(readSchema(f), args)}\n`)
+            .join('\n');
+        writeTypescriptOutput(source);
+        break;
+    }
+}

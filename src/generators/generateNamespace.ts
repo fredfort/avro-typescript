@@ -1,5 +1,4 @@
-import { RecordType, EnumType } from '../model'
-import { GeneratorContext } from './typings'
+import { RecordType, EnumType, GeneratorContext } from '../model'
 import { generateContent } from './generateContent'
 
 export function generateNamespace(

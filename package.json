@@ -15,7 +15,9 @@
     "build": "npm run build-main && npm run build-cli",
     "test": "mocha -r ts-node/register test/*.spec.ts",
     "tslint": "tslint -c tslint.json 'src/**/*.ts'",
-    "run-cli": "npm run build && node dist/cli.js -e const-enum -n -f input.avsc > output.ts"
+    "run-cli": "npm run build && node dist/cli.js gen -e const-enum -f input.avsc > output.ts",
+    "diagnose-cli": "npm run build && node dist/cli.js diagnose -f input.avsc",
+    "help-cli": "npm run build && node dist/cli.js gen -h"
   },
   "repository": {
     "type": "git",
@@ -36,6 +38,7 @@
   "devDependencies": {
     "@types/argparse": "^1.0.34",
     "@types/chai": "^4.1.4",
+    "@types/chalk": "^2.2.0",
     "@types/minimist": "^1.2.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^7.0.69",
@@ -49,6 +52,7 @@
   },
   "dependencies": {
     "argparse": "^1.0.10",
+    "chalk": "^2.4.1",
     "constant-case": "^2.0.0",
     "prettier": "^1.14.2"
   }

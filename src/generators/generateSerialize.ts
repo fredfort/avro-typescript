@@ -8,6 +8,7 @@ import {
   isUnion,
   isMapType,
   TypeVariant,
+  GeneratorContext,
 } from '../model'
 import {
   asSelfExecuting,
@@ -24,7 +25,6 @@ import {
   interfaceName,
   qSerialiserName,
 } from './utils'
-import { GeneratorContext } from './typings'
 import { generateAvroWrapperFieldType } from './generateAvroWrapper'
 
 function getKey(t: any, context: GeneratorContext) {
@@ -46,12 +46,11 @@ export function generateCondition(type: any, context: GeneratorContext, inputVar
         return `typeof ${inputVar} === 'boolean'`
       case 'int':
       case 'long':
-        return `typeof ${inputVar} === 'number' && ${inputVar} % 1 === 0`
       case 'float':
       case 'double':
-        return `typeof ${inputVar} === 'number' && ${inputVar} % 1 !== 0`
-      /* case 'bytes':
-        return `typeof ${inputVar} === Buffer` */
+        return `typeof ${inputVar} === 'number'`
+      case 'bytes':
+        return 'false /* bytes not implemented */'
     }
   } else if (isArrayType(type)) {
     return `Array.isArray(${inputVar})`

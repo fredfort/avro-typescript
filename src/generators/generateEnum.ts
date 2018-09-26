@@ -1,5 +1,4 @@
-import { EnumType, EnumVariant } from '../model'
-import { GeneratorContext } from './typings'
+import { EnumType, EnumVariant, GeneratorContext } from '../model'
 import { enumName } from './utils'
 
 function generateEnum(type: EnumType): string {

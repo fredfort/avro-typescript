@@ -1,5 +1,14 @@
-import { RecordType, isPrimitive, isArrayType, isMapType, isEnumType, isRecordType, HasName, EnumType } from '../model'
-import { GeneratorContext } from './typings'
+import {
+  RecordType,
+  isPrimitive,
+  isArrayType,
+  isMapType,
+  isEnumType,
+  isRecordType,
+  HasName,
+  EnumType,
+  GeneratorContext,
+} from '../model'
 const constantCase = require('constant-case')
 
 export function alphaComparator(a: HasName, b: HasName) {

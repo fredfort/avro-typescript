@@ -8,19 +8,19 @@ import {
   isEnumType,
   EnumType,
   Options,
+  GeneratorContext,
 } from '../model'
 import { FqnResolver } from './FqnResolver'
 import { addNamespaces } from './addNamespaces'
 import { qualifiedName, collectNamespaces, groupByNamespace } from './utils'
-import { GeneratorContext } from './typings'
 import { generateContent } from './generateContent'
 import { generateNamespace } from './generateNamespace'
 
-function getNameToTypeMapping(types: HasName[]): Map<string, RecordType> {
+export function getNameToTypeMapping(types: HasName[]): Map<string, RecordType> {
   return new Map(types.map((type) => [qualifiedName(type), type] as [string, RecordType]))
 }
 
-function getAllRecordTypes(type: any, types: RecordType[]): RecordType[] {
+export function getAllRecordTypes(type: any, types: RecordType[]): RecordType[] {
   if (isRecordType(type)) {
     types.push(type)
     type.fields.forEach((field) => getAllRecordTypes(field.type, types))

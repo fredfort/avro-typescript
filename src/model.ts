@@ -1,3 +1,5 @@
+import { FqnResolver } from './generators/FqnResolver'
+
 /**** Contains the Interfaces and Type Guards for Avro schema */
 export const enum EnumVariant {
   ENUM = 'enum',
@@ -12,6 +14,16 @@ export interface Options {
   enums: EnumVariant
   types: TypeVariant
   namespaces: boolean
+}
+
+export const enum SubCommand {
+  GENERATE = 'gen',
+  DIAGNOSE = 'diagnose',
+}
+
+export interface CommandLineArgs extends Options {
+  files: string[]
+  command: SubCommand
 }
 
 const PRIMITIVE_TYPES = ['string', 'boolean', 'long', 'int', 'double', 'float', 'bytes', 'null']
@@ -58,6 +70,24 @@ export interface EnumType extends BaseType, HasName {
   symbols: string[]
 }
 
+export const enum Similarity {
+  FIELD_COUNT = 'FIELD_COUNT',
+  NUMERIC = 'NUMERIC',
+}
+
+export interface GeneratorContext {
+  fqnResolver: FqnResolver
+  nameToTypeMapping: Map<string, HasName>
+  options: Options
+}
+
+export interface TypeSimilarityDiagnostic {
+  alternatives: string[]
+  typeName: string
+  fieldName: string
+  similarity: Similarity
+}
+
 export interface NumberType extends BaseType {
   type: 'long' | 'int' | 'double' | 'float'
 }
@@ -92,6 +122,10 @@ export function isNumberType(type: BaseType): type is NumberType {
 
 export function isPrimitive(type: Type): boolean {
   return PRIMITIVE_TYPES.indexOf(type as string) >= 0
+}
+
+export function isNumericType(type: Type): boolean {
+  return NUMBER_TYPES.indexOf(type as string) >= 0
 }
 
 export function isOptional(type: Type): boolean {

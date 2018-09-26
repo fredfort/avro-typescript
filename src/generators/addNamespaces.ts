@@ -1,5 +1,4 @@
-import { isArrayType, isMapType, isPrimitive, isUnion, isEnumType, isRecordType, RecordType } from '../model'
-import { GeneratorContext } from './typings'
+import { isArrayType, isMapType, isPrimitive, isUnion, isEnumType, isRecordType, RecordType, GeneratorContext } from '../model'
 
 function augmentRecordsAndEnums(type: any, namespace: string, context: GeneratorContext): void {
   if (isUnion(type)) {
