@@ -15,7 +15,7 @@
     "build": "npm run build-main && npm run build-cli",
     "test": "mocha -r ts-node/register test/*.spec.ts",
     "tslint": "tslint -c tslint.json 'src/**/*.ts'",
-    "run-cli": "npm run build && node dist/cli.js gen -e const-enum -f input.avsc > output.ts",
+    "run-cli": "npm run build && node dist/cli.js gen -e const-enum -f schemas > output.ts",
     "diagnose-cli": "npm run build && node dist/cli.js diagnose -f input.avsc",
     "help-cli": "npm run build && node dist/cli.js gen -h"
   },

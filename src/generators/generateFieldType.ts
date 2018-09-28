@@ -1,5 +1,5 @@
 import { qInterfaceName, qEnumName } from './utils'
-import { isRecordType, isPrimitive, isEnumType, isArrayType, isMapType, ITypeContext } from '../model'
+import { isRecordType, isPrimitive, isEnumType, isArrayType, isMapType, ITypeProvider } from '../model'
 
 export function generatePrimitive(avroType: string): string {
   switch (avroType) {
@@ -21,7 +21,7 @@ export function generatePrimitive(avroType: string): string {
   }
 }
 
-export function generateFieldType(type: any, context: ITypeContext): string {
+export function generateFieldType(type: any, context: ITypeProvider): string {
   if (isPrimitive(type)) {
     return generatePrimitive(type)
   } else if (type instanceof Array) {

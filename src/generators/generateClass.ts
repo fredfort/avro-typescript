@@ -1,15 +1,15 @@
-import { RecordType, Field, ITypeContext } from '../model'
+import { RecordType, Field, ITypeProvider } from '../model'
 import { className, interfaceName } from './utils'
 import { generateDeserialize } from './generateDeserialize'
 import { generateSerialize } from './generateSerialize'
 import { generateFieldType } from './generateFieldType'
 import { generateClone } from './generateClone'
 
-function generateClassFieldDeclaration(field: Field, context: ITypeContext): string {
+function generateClassFieldDeclaration(field: Field, context: ITypeProvider): string {
   return `public ${field.name}: ${generateFieldType(field.type, context)}`
 }
 
-export function generateClass(type: RecordType, context: ITypeContext): string {
+export function generateClass(type: RecordType, context: ITypeProvider): string {
   const assignments = type.fields.map((field) => `this.${field.name} = input.${field.name};`).join('\n')
 
   return `export class ${className(type)} implements ${interfaceName(type)} {

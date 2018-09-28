@@ -1,6 +1,5 @@
-import { basename } from 'path'
 import { generateAll } from './generators/generateAll'
-import { SubCommand, CommandLineArgs } from './model'
+import { SubCommand, CommandLineArgs, ICompilationUnit } from './model'
 import { parser } from './parser'
 import { getAllFiles, readSchema, writeTypescriptOutput } from './fileUtils'
 import { performDiagnostics } from './diagnostics/performDiagnostics'
@@ -11,10 +10,13 @@ switch (args.command) {
     getAllFiles(args.files).forEach((f) => performDiagnostics(f, readSchema(f), args))
     break
   case SubCommand.GENERATE: {
-    const source = getAllFiles(args.files)
-      .map((f) => `// Generated from ${basename(f)}\n\n${generateAll(readSchema(f), args)}\n`)
-      .join('\n')
-    writeTypescriptOutput(source)
+    const compilationUnits = getAllFiles(args.files).map(
+      (filename: string): ICompilationUnit => ({
+        filename,
+        rootType: readSchema(filename),
+      }),
+    )
+    writeTypescriptOutput(generateAll(compilationUnits, args))
     break
   }
 }

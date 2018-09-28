@@ -12,12 +12,17 @@ export interface Options {
   enums: EnumVariant
   types: TypeVariant
   namespaces: boolean
-  generators?: string[]
+  duplicateTypeResolutionStrategy: DuplicateTypeResolutionStrategy
 }
 
 export const enum SubCommand {
   GENERATE = 'gen',
   DIAGNOSE = 'diagnose',
+}
+
+export const enum DuplicateTypeResolutionStrategy {
+  BEST_EFFORT = 'best-effort',
+  FAIL = 'fail',
 }
 
 export interface CommandLineArgs extends Options {
@@ -74,9 +79,13 @@ export const enum Similarity {
   NUMERIC = 'NUMERIC',
 }
 
-export interface ITypeContext {
+export interface ICompilationUnit {
+  filename: string
+  rootType: RecordType
+}
+
+export interface ITypeProvider {
   getOptions(): Options
-  getRootType(): RecordType
   getRecordTypes(): RecordType[]
   getEnumTypes(): EnumType[]
   getNamedTypes(): NamedType[]
@@ -84,6 +93,15 @@ export interface ITypeContext {
   getEnumTypesInNamespace(namespace: string): EnumType[]
   getRecordTypesInNamespace(namespace: string): RecordType[]
   getNamedTypesInNamespace(namespace: string): NamedType[]
+}
+
+export interface IRootContext extends ITypeProvider {
+  getCompilationUnits(): ICompilationUnit[]
+  getTypeContexts(): ITypeContext[]
+}
+
+export interface ITypeContext extends ITypeProvider {
+  getCompilationUnit(): ICompilationUnit
 }
 
 export interface TypeSimilarityDiagnostic {
@@ -146,6 +164,7 @@ export const DEFAULT_OPTIONS: Options = {
   enums: EnumVariant.STRING,
   types: TypeVariant.INTERFACES_ONLY,
   namespaces: false,
+  duplicateTypeResolutionStrategy: DuplicateTypeResolutionStrategy.BEST_EFFORT,
 }
 
 export function getOptions(opts: Partial<Options>): Options {

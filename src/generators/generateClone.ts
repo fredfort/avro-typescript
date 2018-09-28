@@ -9,14 +9,14 @@ import {
   Field,
   TypeVariant,
   ArrayType,
-  ITypeContext,
+  ITypeProvider,
 } from '../model'
 import { generateCondition } from './generateSerialize'
 import { className, qClassName, joinConditional, asSelfExecuting, cloneName, interfaceName, qCloneName } from './utils'
 import { generateFieldType } from './generateFieldType'
 
 // Handling the case when cloning an array of record type. This saves extra function creations
-function generateArrayClone(type: ArrayType, context: ITypeContext, inputVar: string): string {
+function generateArrayClone(type: ArrayType, context: ITypeProvider, inputVar: string): string {
   let items = type.items as any
   if (isUnion(items)) {
     return `${inputVar}.map((e) => {
@@ -29,7 +29,7 @@ function generateArrayClone(type: ArrayType, context: ITypeContext, inputVar: st
   return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`
 }
 
-function generateAssignmentValue(type: any, context: ITypeContext, inputVar: string): string {
+function generateAssignmentValue(type: any, context: ITypeProvider, inputVar: string): string {
   if (isPrimitive(type) || isEnumType(type)) {
     return inputVar
   } else if (isRecordType(type)) {
@@ -70,11 +70,11 @@ function generateAssignmentValue(type: any, context: ITypeContext, inputVar: str
   }
 }
 
-function generateFieldAssginment(field: Field, context: ITypeContext): string {
+function generateFieldAssginment(field: Field, context: ITypeProvider): string {
   return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)}`
 }
 
-function generateStaticClassMethod(type: RecordType, context: ITypeContext): string {
+function generateStaticClassMethod(type: RecordType, context: ITypeProvider): string {
   return `public static clone(input: ${className(type)}): ${className(type)} {
     return new ${className(type)}({
       ${type.fields.map((field) => generateFieldAssginment(field, context)).join(',\n')}
@@ -82,7 +82,7 @@ function generateStaticClassMethod(type: RecordType, context: ITypeContext): str
   }`
 }
 
-function generateStandaloneMethod(type: RecordType, context: ITypeContext): string {
+function generateStandaloneMethod(type: RecordType, context: ITypeProvider): string {
   return `export function ${cloneName(type)}(input: ${interfaceName(type)}): ${interfaceName(type)} {
     return {
       ${type.fields.map((field) => generateFieldAssginment(field, context)).join(',\n')}
@@ -90,7 +90,7 @@ function generateStandaloneMethod(type: RecordType, context: ITypeContext): stri
   }`
 }
 
-export function generateClone(type: RecordType, context: ITypeContext): string {
+export function generateClone(type: RecordType, context: ITypeProvider): string {
   switch (context.getOptions().types) {
     case TypeVariant.CLASSES:
       return generateStaticClassMethod(type, context)

@@ -7,7 +7,7 @@ import {
   isRecordType,
   NamedType,
   EnumType,
-  ITypeContext,
+  ITypeProvider,
 } from '../model'
 const constantCase = require('constant-case')
 
@@ -56,42 +56,42 @@ export function fqnConstantName(type: NamedType) {
   return `${constantCase(type.name)}_FQN`
 }
 
-function qualifiedNameFor<T extends NamedType>(type: T, transform: (T) => string, context: ITypeContext) {
+function qualifiedNameFor<T extends NamedType>(type: T, transform: (T) => string, context: ITypeProvider) {
   if (context.getOptions().namespaces) {
     return qualifiedName(type, transform)
   }
   return transform(type)
 }
 
-export function qInterfaceName(type: RecordType, context: ITypeContext) {
+export function qInterfaceName(type: RecordType, context: ITypeProvider) {
   return qualifiedNameFor(type, interfaceName, context)
 }
 
-export function qClassName(type: RecordType, context: ITypeContext) {
+export function qClassName(type: RecordType, context: ITypeProvider) {
   return qualifiedNameFor(type, className, context)
 }
 
-export function qEnumName(type: EnumType, context: ITypeContext) {
+export function qEnumName(type: EnumType, context: ITypeProvider) {
   return qualifiedNameFor(type, enumName, context)
 }
 
-export function qAvroWrapperName(type: RecordType, context: ITypeContext) {
+export function qAvroWrapperName(type: RecordType, context: ITypeProvider) {
   return qualifiedNameFor(type, avroWrapperName, context)
 }
 
-export function qTypeGuardName(type: RecordType, context: ITypeContext) {
+export function qTypeGuardName(type: RecordType, context: ITypeProvider) {
   return qualifiedNameFor(type, typeGuardName, context)
 }
 
-export function qCloneName(type: RecordType, context: ITypeContext) {
+export function qCloneName(type: RecordType, context: ITypeProvider) {
   return qualifiedNameFor(type, cloneName, context)
 }
 
-export function qDeserialiserName(type: RecordType, context: ITypeContext) {
+export function qDeserialiserName(type: RecordType, context: ITypeProvider) {
   return qualifiedNameFor(type, deserialiserName, context)
 }
 
-export function qSerialiserName(type: RecordType, context: ITypeContext) {
+export function qSerialiserName(type: RecordType, context: ITypeProvider) {
   return qualifiedNameFor(type, serialiserName, context)
 }
 

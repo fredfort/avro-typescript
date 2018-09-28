@@ -1,4 +1,4 @@
-export class FqnResolver {
+export class FullyQualifiedNameStore {
   private fqns: Set<string> = new Set()
   public add(namespace: string, name: string): void {
     this.fqns.add(`${namespace}.${name}`)
@@ -18,7 +18,7 @@ export class FqnResolver {
       case 1:
         return matching[0]
       default:
-        throw new TypeError(`Multiple matching fqns for ${name}: ${matching.join(', ')}`)
+        throw new TypeError(`Multiple identical fqns for ${name}: ${matching.join(', ')}`)
     }
   }
 }

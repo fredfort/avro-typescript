@@ -2,13 +2,13 @@ import { generateInterface } from './generateInterface'
 import { generateClass } from './generateClass'
 import { generateEnumType } from './generateEnum'
 import { generateAvroWrapper } from './generateAvroWrapper'
-import { TypeVariant, ITypeContext, RecordType, EnumType } from '../model'
+import { TypeVariant, ITypeProvider, RecordType, EnumType } from '../model'
 import { generateFqnConstant } from './generateFqnConstants'
 import { generateTypeGuard } from './generateTypeGuard'
 import { generateDeserialize } from './generateDeserialize'
 import { generateSerialize } from './generateSerialize'
 
-export function generateContent(recordTypes: RecordType[], enumTypes: EnumType[], context: ITypeContext) {
+export function generateContent(recordTypes: RecordType[], enumTypes: EnumType[], context: ITypeProvider) {
   const fqns = context.getOptions().namespaces ? [] : context.getNamedTypes().map(generateFqnConstant)
   const enums = enumTypes.map((t) => generateEnumType(t, context))
   const interfaces = recordTypes.map((t) => generateInterface(t, context))

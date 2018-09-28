@@ -12,16 +12,7 @@ import {
   Similarity,
 } from '../model'
 import { qClassName, qualifiedName, className } from '../generators/utils'
-
-function setsEqual<T>(set1: Set<T>, set2: Set<T>): boolean {
-  if (set1.size !== set2.size) return false
-  for (var e of set1) {
-    if (!set2.has(e)) {
-      return false
-    }
-  }
-  return true
-}
+import { setsEqual } from '../common/utils'
 
 function getFieldNames(type: TypeOrRef, context: ITypeContext): Set<string> {
   return isRecordType(type) ? new Set(type.fields.map((f) => f.name)) : null

@@ -1,10 +1,10 @@
-import { RecordType, Options } from '../model'
+import { Options, ICompilationUnit } from '../model'
 import { generateContent } from './generateContent'
 import { generateNamespace } from './generateNamespace'
-import { TypeContext } from '../TypeContext'
+import { RootTypeContext } from '../common/RootTypeContext'
 
-export function generateAll(record: RecordType, options: Partial<Options>): string {
-  const context = new TypeContext(record, options)
+export function generateAll(units: ICompilationUnit[], options: Partial<Options> = {}): string {
+  const context = new RootTypeContext(units, options)
   if (options.namespaces) {
     return context
       .getNamespaces()

@@ -25,6 +25,7 @@ const DEFAULT_OPTIONS = {
     enums: "string" /* STRING */,
     types: "interfaces-only" /* INTERFACES_ONLY */,
     namespaces: false,
+    duplicateTypeResolutionStrategy: "best-effort" /* BEST_EFFORT */,
 };
 function getOptions(opts) {
     return Object.assign({}, DEFAULT_OPTIONS, opts);
@@ -533,17 +534,11 @@ function generateClassFieldDeclaration(field, context) {
     return `public ${field.name}: ${generateFieldType(field.type, context)}`;
 }
 function generateClass(type, context) {
-    const assignments = type.fields.length === 0
-        ? '/* noop */'
-        : type.fields
-            .map((field) => {
-            return `this.${field.name} = input.${field.name} === undefined ? null : input.${field.name};`;
-        })
-            .join('\n');
+    const assignments = type.fields.map((field) => `this.${field.name} = input.${field.name};`).join('\n');
     return `export class ${className(type)} implements ${interfaceName(type)} {
     ${type.fields.map((f) => generateClassFieldDeclaration(f, context)).join('\n')}
     constructor(input: ${interfaceName(type)}) {
-      ${assignments}
+      ${type.fields.length === 0 ? '/* noop */' : assignments}
     }
     ${generateDeserialize(type, context)}
     ${generateSerialize(type, context)}
@@ -626,13 +621,13 @@ function generateNamespace(namespace, context) {
     if (namespace === null) {
         return generateContent(context.getRecordTypes(), context.getEnumTypes(), context);
     }
-    const content = generateContent(context.getRecordTypesForNamespace(namespace), context.getEnumTypesForNamespace(namespace), context);
+    const content = generateContent(context.getRecordTypesInNamespace(namespace), context.getEnumTypesInNamespace(namespace), context);
     return `export namespace ${namespace} {
     ${content}
   }`;
 }
 
-class FqnResolver {
+class FullyQualifiedNameStore {
     constructor() {
         this.fqns = new Set();
     }
@@ -654,71 +649,218 @@ class FqnResolver {
             case 1:
                 return matching[0];
             default:
-                throw new TypeError(`Multiple matching fqns for ${name}: ${matching.join(', ')}`);
+                throw new TypeError(`Multiple identical fqns for ${name}: ${matching.join(', ')}`);
         }
     }
 }
 
-class TypeContext {
-    constructor(root, options) {
+function setsEqual(set1, set2) {
+    if (set1.size !== set2.size)
+        return false;
+    for (var e of set1) {
+        if (!set2.has(e)) {
+            return false;
+        }
+    }
+    return true;
+}
+function alphaComparator$1(a, b) {
+    if (a < b) {
+        return -1;
+    }
+    else if (a > b) {
+        return 1;
+    }
+    return 0;
+}
+function nameComparator(a, b) {
+    return alphaComparator$1(a.name, b.name);
+}
+function collectRecordTypes(type, accumulatedTypes, visited = []) {
+    if (accumulatedTypes.indexOf(type) >= 0) {
+        return;
+    }
+    visited.push(type);
+    if (isRecordType(type)) {
+        accumulatedTypes.push(type);
+        type.fields.forEach((field) => collectRecordTypes(field.type, accumulatedTypes, visited));
+    }
+    else if (isUnion(type)) {
+        type.forEach((optionType) => collectRecordTypes(optionType, accumulatedTypes, visited));
+    }
+    else if (isArrayType(type)) {
+        collectRecordTypes(type.items, accumulatedTypes, visited);
+    }
+    else if (isMapType(type)) {
+        collectRecordTypes(type.values, accumulatedTypes, visited);
+    }
+}
+function collectEnumTypes(type, accumulatedTypes, visited = []) {
+    if (visited.indexOf(type) >= 0) {
+        return;
+    }
+    visited.push(type);
+    if (isEnumType(type)) {
+        accumulatedTypes.push(type);
+    }
+    else if (isUnion(type)) {
+        type.forEach((optionType) => collectEnumTypes(optionType, accumulatedTypes, visited));
+    }
+    else if (isRecordType(type)) {
+        type.fields.forEach((field) => collectEnumTypes(field.type, accumulatedTypes, visited));
+    }
+    else if (isArrayType(type)) {
+        collectEnumTypes(type.items, accumulatedTypes, visited);
+    }
+    else if (isMapType(type)) {
+        collectEnumTypes(type.values, accumulatedTypes, visited);
+    }
+}
+function replaceRefsHelper(type, replaceLocal, replacer) {
+    if (typeof type === 'string' && !isPrimitive(type)) {
+        const newType = replacer(type);
+        replaceLocal(newType);
+    }
+    else if (isUnion(type) || isArrayType(type) || isMapType(type)) {
+        replaceReferences(type, replacer);
+    }
+}
+function replaceReferences(type, replacer) {
+    if (isUnion(type)) {
+        type.forEach((optionType, i) => {
+            replaceRefsHelper(optionType, (newValue) => (type[i] = newValue), replacer);
+        });
+    }
+    else if (isRecordType(type)) {
+        type.fields.forEach((field) => {
+            replaceRefsHelper(field.type, (newValue) => (field.type = newValue), replacer);
+        });
+    }
+    else if (isArrayType(type)) {
+        replaceRefsHelper(type.items, (newValue) => (type.items = newValue), replacer);
+    }
+    else if (isMapType(type)) {
+        replaceRefsHelper(type.values, (newValue) => (type.values = newValue), replacer);
+    }
+}
+function fqn(type) {
+    return `${type.namespace}.${type.name}`;
+}
+
+class TypeByNameResolver {
+    constructor(options) {
+        this.mapping = new Map();
+        this.options = options;
+    }
+    add(fqn$$1, type) {
+        if (this.mapping.has(fqn$$1)) {
+            return this.resolveDuplicateTypeBasedOnStrategy(fqn$$1, type);
+        }
+        this.mapping.set(fqn$$1, type);
+    }
+    get(fqn$$1) {
+        return this.mapping.get(fqn$$1);
+    }
+    resolveDuplicateTypeBasedOnStrategy(fqn$$1, type) {
+        switch (this.options.duplicateTypeResolutionStrategy) {
+            case "fail" /* FAIL */: {
+                throw new TypeError(`Duplicate qualified name in 2 or more schemas ${fqn$$1}!`);
+            }
+            case "best-effort" /* BEST_EFFORT */: {
+                TypeByNameResolver.compareTypes(fqn$$1, this.mapping.get(fqn$$1), type);
+            }
+        }
+    }
+    static compareTypes(fqn$$1, oldType, newType) {
+        if (oldType.type !== newType.type) {
+            throw new TypeError(`Type "${fqn$$1}" has 2 versions with different types which are "${oldType.type}" and "${newType.type}"`);
+        }
+        if (isEnumType(oldType) && isEnumType(newType)) {
+            const oldTypeSymbols = new Set(oldType.symbols);
+            const newTypeSymbols = new Set(newType.symbols);
+            if (!setsEqual(oldTypeSymbols, newTypeSymbols)) {
+                const oldSymbols = oldType.symbols.map((s) => `"${s}"`).join(', ');
+                const newSymbols = newType.symbols.map((s) => `"${s}"`).join(', ');
+                throw new TypeError(`Enum type "${fqn$$1}" has 2 versions with different literals: ${oldSymbols} and ${newSymbols}`);
+            }
+        }
+        if (isRecordType(oldType) && isRecordType(newType)) {
+            const oldFields = new Set(oldType.fields.map((f) => f.name));
+            const newFields = new Set(newType.fields.map((f) => f.name));
+            if (!setsEqual(oldFields, newFields)) {
+                const oldFieldNames = Array.from(oldFields)
+                    .map((s) => `"${s}"`)
+                    .join(', ');
+                const newFieldNames = Array.from(newFields)
+                    .map((s) => `"${s}"`)
+                    .join(', ');
+                throw new TypeError(`Record type "${fqn$$1}" has 2 versions with different field names: ${oldFieldNames} and ${newFieldNames}`);
+            }
+        }
+    }
+}
+
+class AbstractNamespacedTypesProvider {
+    getEnumTypesInNamespace(namespace) {
+        return this.getEnumTypes().filter(({ namespace: ns }) => ns === namespace);
+    }
+    getRecordTypesInNamespace(namespace) {
+        return this.getRecordTypes().filter(({ namespace: ns }) => ns === namespace);
+    }
+    getNamedTypesInNamespace(namespace) {
+        return this.getNamedTypes().filter(({ namespace: ns }) => ns === namespace);
+    }
+}
+
+class TypeContext extends AbstractNamespacedTypesProvider {
+    constructor(unit, options, autoresolve = true) {
+        super();
         this._options = getOptions(options);
-        this._rootType = JSON.parse(JSON.stringify(root));
-        this.init();
+        this._rootType = JSON.parse(JSON.stringify(unit.rootType));
+        this._unit = unit;
+        const fqns = new FullyQualifiedNameStore();
+        TypeContext._addNamespacesToNamedTypes(this._rootType, null, fqns);
+        this.getRecordTypes().forEach((record) => TypeContext._replaceRefsWithFullyQualifiedRefs(record, fqns));
+        if (autoresolve) {
+            const resolver = new TypeByNameResolver(this.getOptions());
+            this.addTypes(resolver);
+            this.resolveTypes(resolver);
+        }
+    }
+    getCompilationUnit() {
+        return this._unit;
     }
     getOptions() {
         return this._options;
     }
-    getRootType() {
-        return this._rootType;
-    }
     getRecordTypes() {
-        if (!Array.isArray(this._recordTypes)) {
-            this._recordTypes = [];
-            TypeContext._getAllRecordTypes(this._rootType, this._recordTypes);
-            this._recordTypes = this._recordTypes.sort(TypeContext.alphaComparator);
-        }
-        return this._recordTypes;
+        const recordTypes = [];
+        collectRecordTypes(this._rootType, recordTypes);
+        return recordTypes.sort(nameComparator);
     }
     getEnumTypes() {
-        if (!Array.isArray(this._enumTypes)) {
-            this._enumTypes = [];
-            TypeContext._getAllEnumTypes(this._rootType, this._enumTypes);
-            this._enumTypes = this._enumTypes.sort(TypeContext.alphaComparator);
-        }
-        return this._enumTypes;
+        const enumTypes = [];
+        collectEnumTypes(this._rootType, enumTypes);
+        return enumTypes.sort(nameComparator);
     }
     getNamedTypes() {
-        if (!Array.isArray(this._namedTypes)) {
-            this._namedTypes = []
-                .concat(this.getRecordTypes())
-                .concat(this.getEnumTypes())
-                .sort(TypeContext.alphaComparator);
-        }
-        return this._namedTypes;
+        return []
+            .concat(this.getRecordTypes())
+            .concat(this.getEnumTypes())
+            .sort(nameComparator);
     }
     getNamespaces() {
-        if (!Array.isArray(this._namespaces)) {
-            const withDuplicates = this.getNamedTypes().map(({ namespace }) => namespace);
-            const uniquest = new Set(withDuplicates);
-            this._namespaces = Array.from(uniquest).filter((namespace) => typeof namespace === 'string');
-        }
-        return this._namespaces;
+        const withDuplicates = this.getNamedTypes().map(({ namespace }) => namespace);
+        const uniques = new Set(withDuplicates);
+        return Array.from(uniques)
+            .filter((namespace) => typeof namespace === 'string')
+            .sort(alphaComparator$1);
     }
-    getEnumTypesForNamespace(namespace) {
-        return this.getEnumTypes().filter(({ namespace: ns }) => ns === namespace);
+    resolveTypes(resolver) {
+        this.getRecordTypes().forEach((record) => TypeContext._resolveReferenceFullyQualifiedRefs(record, resolver));
     }
-    getRecordTypesForNamespace(namespace) {
-        return this.getRecordTypes().filter(({ namespace: ns }) => ns === namespace);
-    }
-    getNamedTypesForNamespace(namespace) {
-        return this.getNamedTypes().filter(({ namespace: ns }) => ns === namespace);
-    }
-    init() {
-        const fqnResolver = new FqnResolver();
-        TypeContext._addNamespacesToNamedTypes(this._rootType, null, fqnResolver);
-        this.getRecordTypes().forEach((record) => TypeContext._replaceRefsWithFullyQualifiedRefs(record, fqnResolver));
-        const nameToTypeMapping = TypeContext._buildNameToTypeMapping(this.getNamedTypes());
-        this.getRecordTypes().forEach((record) => TypeContext._resolveReferenceFullyQualifiedRefs(record, nameToTypeMapping));
+    addTypes(resolver) {
+        this.getNamedTypes().forEach((type) => resolver.add(fqn(type), type));
     }
     static _addNamespacesToNamedTypes(type, namespace, fqnResolver) {
         if (isUnion(type)) {
@@ -741,89 +883,66 @@ class TypeContext {
         }
     }
     static _replaceRefsWithFullyQualifiedRefs(type, fqnResolver) {
-        TypeContext._replaceReferences(type, (typeName) => fqnResolver.get(typeName));
+        replaceReferences(type, (typeName) => fqnResolver.get(typeName));
     }
     static _resolveReferenceFullyQualifiedRefs(type, nameToTypeMapping) {
-        TypeContext._replaceReferences(type, (fqn) => nameToTypeMapping.get(fqn));
-    }
-    static _replaceRefsHelper(type, replaceLocal, replacer) {
-        if (typeof type === 'string' && !isPrimitive(type)) {
-            const newType = replacer(type);
-            replaceLocal(newType);
-        }
-        else if (isUnion(type) || isArrayType(type) || isMapType(type)) {
-            TypeContext._replaceReferences(type, replacer);
-        }
-    }
-    static _replaceReferences(type, replacer) {
-        if (isUnion(type)) {
-            type.forEach((optionType, i) => {
-                TypeContext._replaceRefsHelper(optionType, (newValue) => (type[i] = newValue), replacer);
-            });
-        }
-        else if (isRecordType(type)) {
-            type.fields.forEach((field) => {
-                TypeContext._replaceRefsHelper(field.type, (newValue) => (field.type = newValue), replacer);
-            });
-        }
-        else if (isArrayType(type)) {
-            TypeContext._replaceRefsHelper(type.items, (newValue) => (type.items = newValue), replacer);
-        }
-        else if (isMapType(type)) {
-            TypeContext._replaceRefsHelper(type.values, (newValue) => (type.values = newValue), replacer);
-        }
-    }
-    static _getAllRecordTypes(type, accumulatedTypes) {
-        if (isRecordType(type)) {
-            accumulatedTypes.push(type);
-            type.fields.forEach((field) => TypeContext._getAllRecordTypes(field.type, accumulatedTypes));
-        }
-        else if (isUnion(type)) {
-            type.forEach((optionType) => TypeContext._getAllRecordTypes(optionType, accumulatedTypes));
-        }
-        else if (isArrayType(type)) {
-            TypeContext._getAllRecordTypes(type.items, accumulatedTypes);
-        }
-        else if (isMapType(type)) {
-            TypeContext._getAllRecordTypes(type.values, accumulatedTypes);
-        }
-    }
-    static _getAllEnumTypes(type, accumulatedTypes) {
-        if (isEnumType(type)) {
-            accumulatedTypes.push(type);
-        }
-        else if (isUnion(type)) {
-            type.forEach((optionType) => TypeContext._getAllEnumTypes(optionType, accumulatedTypes));
-        }
-        else if (isRecordType(type)) {
-            type.fields.forEach((field) => TypeContext._getAllEnumTypes(field.type, accumulatedTypes));
-        }
-        else if (isArrayType(type)) {
-            TypeContext._getAllEnumTypes(type.items, accumulatedTypes);
-        }
-        else if (isMapType(type)) {
-            TypeContext._getAllEnumTypes(type.values, accumulatedTypes);
-        }
-    }
-    static _buildNameToTypeMapping(types) {
-        return new Map(types.map((type) => [TypeContext._fqn(type), type]));
-    }
-    static _fqn(type) {
-        return `${type.namespace}.${type.name}`;
-    }
-    static alphaComparator(a, b) {
-        if (a.name < b.name) {
-            return -1;
-        }
-        else if (a.name > b.name) {
-            return 1;
-        }
-        return 0;
+        replaceReferences(type, (fqn$$1) => nameToTypeMapping.get(fqn$$1));
     }
 }
 
-function generateAll(record, options) {
-    const context = new TypeContext(record, options);
+class RootTypeContext extends AbstractNamespacedTypesProvider {
+    constructor(units, options) {
+        super();
+        this._compilationUnits = units;
+        this._options = getOptions(options);
+        this._typeContexts = this._compilationUnits.map((unit) => new TypeContext(unit, this.getOptions(), false));
+        const resolver = new TypeByNameResolver(this.getOptions());
+        this._typeContexts.forEach((context) => context.addTypes(resolver));
+        this._typeContexts.forEach((context) => context.resolveTypes(resolver));
+        this._enumTypes = this.collectUniqueTypes((context) => context.getEnumTypes(), resolver);
+        this._recordTypes = this.collectUniqueTypes((context) => context.getRecordTypes(), resolver);
+        this._namedTypes = []
+            .concat(this.getRecordTypes())
+            .concat(this.getEnumTypes())
+            .sort(nameComparator);
+    }
+    getTypeContexts() {
+        return this._typeContexts;
+    }
+    getCompilationUnits() {
+        return this._compilationUnits;
+    }
+    getOptions() {
+        return this._options;
+    }
+    getRecordTypes() {
+        return this._recordTypes;
+    }
+    getEnumTypes() {
+        return this._enumTypes;
+    }
+    getNamedTypes() {
+        return this._namedTypes;
+    }
+    getNamespaces() {
+        if (!Array.isArray(this._namespaces)) {
+            const withDuplicates = this.getNamedTypes().map(({ namespace }) => namespace);
+            const uniquest = new Set(withDuplicates);
+            this._namespaces = Array.from(uniquest).filter((namespace) => typeof namespace === 'string');
+        }
+        return this._namespaces;
+    }
+    collectUniqueTypes(getter, resolver) {
+        const nestedValues = this.getTypeContexts().map(getter);
+        const nonUniqueNames = [].concat(...nestedValues).map(fqn);
+        const uniqueNames = Array.from(new Set(nonUniqueNames));
+        const typesFromResolver = uniqueNames.map((name) => resolver.get(name)).sort(nameComparator);
+        return typesFromResolver;
+    }
+}
+
+function generateAll(units, options = {}) {
+    const context = new RootTypeContext(units, options);
     if (options.namespaces) {
         return context
             .getNamespaces()

@@ -1,7 +1,7 @@
-import { ITypeContext } from '../model'
+import { ITypeProvider } from '../model'
 import { generateContent } from './generateContent'
 
-export function generateNamespace(namespace: string, context: ITypeContext): string {
+export function generateNamespace(namespace: string, context: ITypeProvider): string {
   if (namespace === null) {
     return generateContent(context.getRecordTypes(), context.getEnumTypes(), context)
   }

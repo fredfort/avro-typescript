@@ -7,7 +7,7 @@ import {
   isUnion,
   isMapType,
   isPrimitive,
-  ITypeContext,
+  ITypeProvider,
 } from '../model'
 import {
   avroWrapperName,
@@ -20,7 +20,7 @@ import {
 } from './utils'
 import { generatePrimitive } from './generateFieldType'
 
-function getTypeKey(type: any, context: ITypeContext): string {
+function getTypeKey(type: any, context: ITypeProvider): string {
   if (isPrimitive(type)) {
     return type
   } else if (isEnumType(type)) {
@@ -40,7 +40,7 @@ function quoteTypeKey(key: string): string {
   return key
 }
 
-export function generateAvroWrapperFieldType(type: any, context: ITypeContext): string {
+export function generateAvroWrapperFieldType(type: any, context: ITypeProvider): string {
   if (isPrimitive(type)) {
     return generatePrimitive(type)
   } else if (isEnumType(type)) {
@@ -66,11 +66,11 @@ export function generateAvroWrapperFieldType(type: any, context: ITypeContext): 
   }
 }
 
-function generateFieldDeclaration(field: Field, context: ITypeContext): string {
+function generateFieldDeclaration(field: Field, context: ITypeProvider): string {
   return `${field.name}: ${generateAvroWrapperFieldType(field.type, context)}`
 }
 
-export function generateAvroWrapper(type: RecordType, context: ITypeContext): string {
+export function generateAvroWrapper(type: RecordType, context: ITypeProvider): string {
   return `export interface ${avroWrapperName(type)} {
     ${type.fields.map((field) => generateFieldDeclaration(field, context)).join('\n')}
   }`
