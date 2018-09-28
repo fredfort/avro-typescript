@@ -5,13 +5,13 @@ import {
   isMapType,
   isEnumType,
   isRecordType,
-  HasName,
+  NamedType,
   EnumType,
-  GeneratorContext,
+  ITypeContext,
 } from '../model'
 const constantCase = require('constant-case')
 
-export function alphaComparator(a: HasName, b: HasName) {
+export function alphaComparator(a: NamedType, b: NamedType) {
   if (a.name < b.name) {
     return -1
   } else if (a.name > b.name) {
@@ -52,56 +52,51 @@ export function serialiserName(type: RecordType) {
   return `serialize${type.name}`
 }
 
-export function fqnConstantName(type: HasName) {
+export function fqnConstantName(type: NamedType) {
   return `${constantCase(type.name)}_FQN`
 }
 
-function qualifiedNameFor<T extends HasName>(type: T, transform: (T) => string, context: GeneratorContext) {
-  if (context.options.namespaces) {
+function qualifiedNameFor<T extends NamedType>(type: T, transform: (T) => string, context: ITypeContext) {
+  if (context.getOptions().namespaces) {
     return qualifiedName(type, transform)
   }
   return transform(type)
 }
 
-export function qInterfaceName(type: RecordType, context: GeneratorContext) {
+export function qInterfaceName(type: RecordType, context: ITypeContext) {
   return qualifiedNameFor(type, interfaceName, context)
 }
 
-export function qClassName(type: RecordType, context: GeneratorContext) {
+export function qClassName(type: RecordType, context: ITypeContext) {
   return qualifiedNameFor(type, className, context)
 }
 
-export function qEnumName(type: EnumType, context: GeneratorContext) {
+export function qEnumName(type: EnumType, context: ITypeContext) {
   return qualifiedNameFor(type, enumName, context)
 }
 
-export function qAvroWrapperName(type: RecordType, context: GeneratorContext) {
+export function qAvroWrapperName(type: RecordType, context: ITypeContext) {
   return qualifiedNameFor(type, avroWrapperName, context)
 }
 
-export function qTypeGuardName(type: RecordType, context: GeneratorContext) {
+export function qTypeGuardName(type: RecordType, context: ITypeContext) {
   return qualifiedNameFor(type, typeGuardName, context)
 }
 
-export function qCloneName(type: RecordType, context: GeneratorContext) {
+export function qCloneName(type: RecordType, context: ITypeContext) {
   return qualifiedNameFor(type, cloneName, context)
 }
 
-export function qDeserialiserName(type: RecordType, context: GeneratorContext) {
+export function qDeserialiserName(type: RecordType, context: ITypeContext) {
   return qualifiedNameFor(type, deserialiserName, context)
 }
 
-export function qSerialiserName(type: RecordType, context: GeneratorContext) {
+export function qSerialiserName(type: RecordType, context: ITypeContext) {
   return qualifiedNameFor(type, serialiserName, context)
 }
 
-export function qualifiedName(type: HasName, transform: (e: HasName) => string = (e) => e.name) {
+export function qualifiedName(type: NamedType, transform: (e: NamedType) => string = (e) => e.name) {
   return type.namespace ? `${type.namespace}.${transform(type)}` : transform(type)
-}
-
-export function resolveReference(ref: string, context: GeneratorContext): HasName {
-  const fqn = context.fqnResolver.get(ref)
-  return context.nameToTypeMapping.get(fqn)
 }
 
 export function asSelfExecuting(code: string): string {
@@ -119,19 +114,17 @@ export function joinConditional(branches: [string, string][]): string {
   ${restOfBranches.map(([cond, branch]) => `else if(${cond}){\n${branch}\n}`).join('\n')}`
 }
 
-export function getTypeName(type: any, context: GeneratorContext): string {
+export function getTypeName(type: any): string {
   if (isPrimitive(type)) {
     return type
   } else if (isArrayType(type) || isMapType(type)) {
     return type.type
   } else if (isRecordType(type) || isEnumType(type)) {
     return qualifiedName(type)
-  } else if (typeof type === 'string') {
-    return context.fqnResolver.get(type)
   }
 }
 
-export function groupByNamespace<T extends HasName>(types: T[]): Map<string, T[]> {
+export function groupByNamespace<T extends NamedType>(types: T[]): Map<string, T[]> {
   const mapping = new Map<string, T[]>()
   types.forEach((type) => {
     if (!Array.isArray(mapping.get(type.namespace))) {
@@ -143,7 +136,7 @@ export function groupByNamespace<T extends HasName>(types: T[]): Map<string, T[]
   return mapping
 }
 
-export function collectNamespaces(types: HasName[]): Set<string> {
+export function collectNamespaces(types: NamedType[]): Set<string> {
   const ns = new Set<string>()
   types.forEach(({ namespace }) => ns.add(namespace))
   return ns

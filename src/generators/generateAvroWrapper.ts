@@ -7,12 +7,11 @@ import {
   isUnion,
   isMapType,
   isPrimitive,
-  GeneratorContext,
+  ITypeContext,
 } from '../model'
 import {
   avroWrapperName,
   qEnumName,
-  resolveReference,
   qAvroWrapperName,
   fqnConstantName,
   qualifiedName,
@@ -21,17 +20,15 @@ import {
 } from './utils'
 import { generatePrimitive } from './generateFieldType'
 
-function getTypeKey(type: any, context: GeneratorContext): string {
+function getTypeKey(type: any, context: ITypeContext): string {
   if (isPrimitive(type)) {
     return type
   } else if (isEnumType(type)) {
-    return context.options.namespaces ? qualifiedName(type, enumName) : `[${fqnConstantName(type)}]`
+    return context.getOptions().namespaces ? qualifiedName(type, enumName) : `[${fqnConstantName(type)}]`
   } else if (isRecordType(type)) {
-    return context.options.namespaces ? qualifiedName(type, className) : `[${fqnConstantName(type)}]`
+    return context.getOptions().namespaces ? qualifiedName(type, className) : `[${fqnConstantName(type)}]`
   } else if (isArrayType(type) || isMapType(type)) {
     return type.type
-  } else if (typeof type === 'string') {
-    return getTypeKey(resolveReference(type, context), context)
   }
   throw new TypeError(`Unknown type`)
 }
@@ -43,7 +40,7 @@ function quoteTypeKey(key: string): string {
   return key
 }
 
-export function generateAvroWrapperFieldType(type: any, context: GeneratorContext): string {
+export function generateAvroWrapperFieldType(type: any, context: ITypeContext): string {
   if (isPrimitive(type)) {
     return generatePrimitive(type)
   } else if (isEnumType(type)) {
@@ -64,18 +61,16 @@ export function generateAvroWrapperFieldType(type: any, context: GeneratorContex
     }${hasNull ? '| null' : ''}`
   } else if (isMapType(type)) {
     return `{ [index:string]:${generateAvroWrapperFieldType(type.values, context)} }`
-  } else if (typeof type === 'string') {
-    return generateAvroWrapperFieldType(resolveReference(type, context), context)
   } else {
     throw new TypeError(`not ready for type ${type}`)
   }
 }
 
-function generateFieldDeclaration(field: Field, context: GeneratorContext): string {
+function generateFieldDeclaration(field: Field, context: ITypeContext): string {
   return `${field.name}: ${generateAvroWrapperFieldType(field.type, context)}`
 }
 
-export function generateAvroWrapper(type: RecordType, context: GeneratorContext): string {
+export function generateAvroWrapper(type: RecordType, context: ITypeContext): string {
   return `export interface ${avroWrapperName(type)} {
     ${type.fields.map((field) => generateFieldDeclaration(field, context)).join('\n')}
   }`

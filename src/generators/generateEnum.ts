@@ -1,4 +1,4 @@
-import { EnumType, EnumVariant, GeneratorContext } from '../model'
+import { EnumType, EnumVariant, ITypeContext } from '../model'
 import { enumName } from './utils'
 
 function generateEnum(type: EnumType): string {
@@ -17,8 +17,8 @@ function generateStringUnion(type: EnumType): string {
   return `export type ${enumName(type)} = ${type.symbols.map((symbol) => `'${symbol}'`).join(' | ')}`
 }
 
-export function generateEnumType(type: EnumType, context: GeneratorContext): string {
-  switch (context.options.enums) {
+export function generateEnumType(type: EnumType, context: ITypeContext): string {
+  switch (context.getOptions().enums) {
     case EnumVariant.ENUM:
       return generateEnum(type)
     case EnumVariant.CONST_ENUM:

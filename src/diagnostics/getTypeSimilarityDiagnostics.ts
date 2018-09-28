@@ -1,18 +1,17 @@
 import {
-  Type,
+  TypeOrRef,
   isRecordType,
   RecordType,
   isUnion,
   Field,
-  isPrimitive,
   isNumericType,
   isArrayType,
   isMapType,
-  GeneratorContext,
+  ITypeContext,
   TypeSimilarityDiagnostic,
   Similarity,
 } from '../model'
-import { resolveReference, qClassName, qualifiedName, className } from '../generators/utils'
+import { qClassName, qualifiedName, className } from '../generators/utils'
 
 function setsEqual<T>(set1: Set<T>, set2: Set<T>): boolean {
   if (set1.size !== set2.size) return false
@@ -24,26 +23,17 @@ function setsEqual<T>(set1: Set<T>, set2: Set<T>): boolean {
   return true
 }
 
-function getFieldNames(type: Type, context: GeneratorContext): Set<string> {
+function getFieldNames(type: TypeOrRef, context: ITypeContext): Set<string> {
   return isRecordType(type) ? new Set(type.fields.map((f) => f.name)) : null
 }
 
-function ensureTypeResolved(context: GeneratorContext) {
-  return (type: Type) => {
-    if (!isPrimitive(type) && typeof type === 'string') {
-      return resolveReference(type, context)
-    }
-    return type
-  }
-}
 function getRecordTypeDiagnostics(
   owner: RecordType,
   field: Field,
-  types: Type[],
-  context: GeneratorContext,
+  types: TypeOrRef[],
+  context: ITypeContext,
 ): TypeSimilarityDiagnostic[] {
   const fieldTypeNames = types
-    .map(ensureTypeResolved(context))
     .map((type) => [type, getFieldNames(type, context)] as [RecordType, Set<string>])
     .filter(([, names]) => names !== null)
 
@@ -84,8 +74,8 @@ function getRecordTypeDiagnostics(
 function getNumberTypeDiagnostics(
   owner: RecordType,
   field: Field,
-  types: Type[],
-  context: GeneratorContext,
+  types: TypeOrRef[],
+  context: ITypeContext,
 ): TypeSimilarityDiagnostic[] {
   const numberTypes = types.filter((type) => isNumericType(type)).map((type) => type as string)
   if (numberTypes.length >= 2) {
@@ -101,10 +91,7 @@ function getNumberTypeDiagnostics(
   return []
 }
 
-export function getTypeSimilarityDiagnostics(
-  types: RecordType[],
-  context: GeneratorContext,
-): TypeSimilarityDiagnostic[] {
+export function getTypeSimilarityDiagnostics(types: RecordType[], context: ITypeContext): TypeSimilarityDiagnostic[] {
   const diagnostics: TypeSimilarityDiagnostic[] = []
   for (const t of types) {
     for (const f of t.fields) {

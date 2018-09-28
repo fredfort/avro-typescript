@@ -1,5 +1,5 @@
 import { ArgumentParser } from 'argparse'
-import { EnumVariant, TypeVariant, SubCommand } from './model'
+import { EnumVariant, TypeVariant, SubCommand, DEFAULT_OPTIONS } from './model'
 
 export const parser = new ArgumentParser({
   description: 'Avro schema to TypeScript generator',
@@ -35,7 +35,7 @@ generateParser.addArgument(['--file', '-f'], {
 generateParser.addArgument(['--enums', '-e'], {
   required: false,
   dest: 'enums',
-  defaultValue: EnumVariant.STRING,
+  defaultValue: DEFAULT_OPTIONS.enums,
   choices: [EnumVariant.STRING, EnumVariant.ENUM, EnumVariant.CONST_ENUM],
   help: 'The type of the generated enums.',
 })
@@ -43,7 +43,7 @@ generateParser.addArgument(['--enums', '-e'], {
 generateParser.addArgument(['--types', '-t'], {
   required: false,
   dest: 'types',
-  defaultValue: TypeVariant.INTERFACES_ONLY,
+  defaultValue: DEFAULT_OPTIONS.types,
   choices: [TypeVariant.INTERFACES_ONLY, TypeVariant.CLASSES],
   help: 'The type of the generated types.',
 })
@@ -52,7 +52,7 @@ generateParser.addArgument(['--namespaces', '-n'], {
   required: false,
   dest: 'namespaces',
   action: 'storeTrue',
-  defaultValue: false,
+  defaultValue: DEFAULT_OPTIONS.namespaces,
   choices: [EnumVariant.STRING, EnumVariant.ENUM, EnumVariant.CONST_ENUM],
   help: 'Flag indicating if namespaces should be generated or not.',
 })

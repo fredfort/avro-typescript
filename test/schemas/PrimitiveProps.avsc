@@ -1,0 +1,35 @@
+{
+  "name": "PrimitiveProps",
+  "type": "record",
+  "description": "Simple record type demonstrating having all primitive type fields.",
+  "fields": [
+    {
+      "type": "string",
+      "name": "stringProp"
+    },
+    {
+      "type": "boolean",
+      "name": "booleanProp"
+    },
+    {
+      "type": "long",
+      "name": "longProp"
+    },
+    {
+      "type": "int",
+      "name": "intProp"
+    },
+    {
+      "type": "double",
+      "name": "doubleProp"
+    },
+    {
+      "type": "float",
+      "name": "floatProp"
+    },
+    {
+      "type": "null",
+      "name": "nullProp"
+    }
+  ]
+}

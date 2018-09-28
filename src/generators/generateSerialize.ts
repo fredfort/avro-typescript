@@ -8,14 +8,13 @@ import {
   isUnion,
   isMapType,
   TypeVariant,
-  GeneratorContext,
+  ITypeContext,
 } from '../model'
 import {
   asSelfExecuting,
   joinConditional,
   qualifiedName,
   getTypeName,
-  resolveReference,
   qClassName,
   className,
   avroWrapperName,
@@ -27,17 +26,15 @@ import {
 } from './utils'
 import { generateAvroWrapperFieldType } from './generateAvroWrapper'
 
-function getKey(t: any, context: GeneratorContext) {
-  if (!isPrimitive(t) && typeof t === 'string') {
-    return getKey(resolveReference(t, context), context)
-  } else if (isEnumType(t) || isRecordType(t)) {
-    return context.options.namespaces ? `'${qualifiedName(t)}'` : `[${fqnConstantName(t)}]`
+function getKey(t: any, context: ITypeContext) {
+  if (isEnumType(t) || isRecordType(t)) {
+    return context.getOptions().namespaces ? `'${qualifiedName(t)}'` : `[${fqnConstantName(t)}]`
   } else {
-    return `'${getTypeName(t, context)}'`
+    return `'${getTypeName(t)}'`
   }
 }
 
-export function generateCondition(type: any, context: GeneratorContext, inputVar: string) {
+export function generateCondition(type: any, context: ITypeContext, inputVar: string) {
   if (isPrimitive(type)) {
     switch (type) {
       case 'string':
@@ -55,7 +52,7 @@ export function generateCondition(type: any, context: GeneratorContext, inputVar
   } else if (isArrayType(type)) {
     return `Array.isArray(${inputVar})`
   } else if (isRecordType(type)) {
-    switch (context.options.types) {
+    switch (context.getOptions().types) {
       case TypeVariant.CLASSES:
         return `${inputVar} instanceof ${qClassName(type, context)}`
       case TypeVariant.INTERFACES_ONLY:
@@ -68,27 +65,23 @@ export function generateCondition(type: any, context: GeneratorContext, inputVar
       .join(',')}].indexOf(${inputVar}) >= 0`
   } else if (isMapType(type)) {
     return `typeof ${inputVar} === 'object'` // TODO
-  } else if (typeof type === 'string') {
-    return generateCondition(resolveReference(type, context), context, inputVar)
   }
   throw new TypeError(`Unknown type ${JSON.stringify(type)}`)
 }
 
-function generateUnionWrapper(type: any, context: GeneratorContext, inputVar: string) {
+function generateUnionWrapper(type: any, context: ITypeContext, inputVar: string) {
   if (isPrimitive(type) || isArrayType(type) || isMapType(type) || isEnumType(type) || isRecordType(type)) {
     return `return { ${getKey(type, context)}: ${generateAssignmentValue(type, context, inputVar)} }`
-  } else if (typeof type === 'string') {
-    return generateUnionWrapper(resolveReference(type, context), context, inputVar)
   } else {
     throw new TypeError(`Unknown type ${type}`)
   }
 }
 
-function generateAssignmentValue(type: any, context: GeneratorContext, inputVar: string): string {
+function generateAssignmentValue(type: any, context: ITypeContext, inputVar: string): string {
   if (isPrimitive(type) || isEnumType(type)) {
     return inputVar
   } else if (isRecordType(type)) {
-    switch (context.options.types) {
+    switch (context.getOptions().types) {
       case TypeVariant.CLASSES:
         return `${qClassName(type, context)}.serialize(${inputVar})`
       case TypeVariant.INTERFACES_ONLY:
@@ -119,18 +112,16 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
     }
     return output;`
     return asSelfExecuting(mapParsingStatements)
-  } else if (typeof type === 'string') {
-    return generateAssignmentValue(resolveReference(type, context), context, inputVar)
   } else {
     throw new TypeError(`not ready for type ${type}`)
   }
 }
 
-function generateFieldAssginment(field: Field, context: GeneratorContext): string {
+function generateFieldAssginment(field: Field, context: ITypeContext): string {
   return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)},`
 }
 
-function generateStaticClassMethod(type: RecordType, context: GeneratorContext): string {
+function generateStaticClassMethod(type: RecordType, context: ITypeContext): string {
   return `public static serialize(input: ${className(type)}): ${avroWrapperName(type)} {
     return {
       ${type.fields.map((field) => generateFieldAssginment(field, context)).join('\n')}
@@ -138,7 +129,7 @@ function generateStaticClassMethod(type: RecordType, context: GeneratorContext):
   }`
 }
 
-function generateStandaloneMethod(type: RecordType, context: GeneratorContext): string {
+function generateStandaloneMethod(type: RecordType, context: ITypeContext): string {
   return `export function ${serialiserName(type)}(input: ${interfaceName(type)}): ${avroWrapperName(type)} {
     return {
       ${type.fields.map((field) => generateFieldAssginment(field, context)).join('\n')}
@@ -146,8 +137,8 @@ function generateStandaloneMethod(type: RecordType, context: GeneratorContext): 
   }`
 }
 
-export function generateSerialize(type: RecordType, context: GeneratorContext) {
-  switch (context.options.types) {
+export function generateSerialize(type: RecordType, context: ITypeContext) {
+  switch (context.getOptions().types) {
     case TypeVariant.CLASSES:
       return generateStaticClassMethod(type, context)
     case TypeVariant.INTERFACES_ONLY:
