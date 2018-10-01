@@ -755,7 +755,7 @@ function replaceReferences(type, replacer) {
     }
 }
 function fqn(type) {
-    return `${type.namespace}.${type.name}`;
+    return type.namespace && type.namespace.length > 0 ? `${type.namespace}.${type.name}` : type.name;
 }
 
 class TypeByNameResolver {
@@ -820,6 +820,15 @@ class AbstractNamespacedTypesProvider {
     }
     getNamedTypesInNamespace(namespace) {
         return this.getNamedTypes().filter(({ namespace: ns }) => ns === namespace);
+    }
+    getEnumType(qualifiedName) {
+        return this.getEnumTypes().find((e) => fqn(e) === qualifiedName);
+    }
+    getRecordType(qualifiedName) {
+        return this.getRecordTypes().find((e) => fqn(e) === qualifiedName);
+    }
+    getNamedType(qualifiedName) {
+        return this.getNamedTypes().find((e) => fqn(e) === qualifiedName);
     }
 }
 
@@ -902,7 +911,7 @@ class TypeContext extends AbstractNamespacedTypesProvider {
 }
 
 class RootTypeContext extends AbstractNamespacedTypesProvider {
-    constructor(units, options) {
+    constructor(units, options = {}) {
         super();
         this._compilationUnits = units;
         this._options = getOptions(options);
