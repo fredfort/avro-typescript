@@ -14,6 +14,10 @@ import {
   ClassDeclaration,
   EnumDeclaration,
   PropertySignature,
+  TypeFlags,
+  UnionType,
+  TypeAliasDeclaration,
+  FunctionDeclaration,
 } from 'typescript'
 
 export const SAMPLE_FILE_NAME = 'sample.ts'
@@ -61,6 +65,8 @@ function getASTNodesOfType<T extends Node>(kind: SyntaxKind) {
 export const getInterfaces = getASTNodesOfType<InterfaceDeclaration>(SyntaxKind.InterfaceDeclaration)
 export const getClasses = getASTNodesOfType<ClassDeclaration>(SyntaxKind.ClassDeclaration)
 export const getEnums = getASTNodesOfType<EnumDeclaration>(SyntaxKind.EnumDeclaration)
+export const getTypeAliases = getASTNodesOfType<TypeAliasDeclaration>(SyntaxKind.TypeAliasDeclaration)
+export const getFunctions = getASTNodesOfType<FunctionDeclaration>(SyntaxKind.FunctionDeclaration)
 
 export function getSimpleFields(interfaceDecl: InterfaceDeclaration): PropertySignature[] {
   return interfaceDecl.members
@@ -76,4 +82,13 @@ export function getTypeName(program: Program, prop: PropertySignature): string {
   const typeChecker = program.getTypeChecker()
   const type = typeChecker.getTypeAtLocation(prop.type)
   return typeChecker.typeToString(type)
+}
+
+export function getUnionTypeNames(program: Program, prop: PropertySignature): string[] {
+  const typeChecker = program.getTypeChecker()
+  const type = typeChecker.getTypeAtLocation(prop.type)
+  if (type.flags & TypeFlags.Union) {
+    return (type as UnionType).types.map((t) => typeChecker.typeToString(t))
+  }
+  throw new TypeError(`not a union type`)
 }

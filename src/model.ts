@@ -90,6 +90,9 @@ export interface ITypeProvider {
   getEnumTypes(): EnumType[]
   getNamedTypes(): NamedType[]
   getNamespaces(): string[]
+  getRecordType(fqn: string): RecordType
+  getEnumType(fqn: string): EnumType
+  getNamedType(fqn: string): NamedType
   getEnumTypesInNamespace(namespace: string): EnumType[]
   getRecordTypesInNamespace(namespace: string): RecordType[]
   getNamedTypesInNamespace(namespace: string): NamedType[]

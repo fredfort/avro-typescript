@@ -23,7 +23,7 @@ export class RootTypeContext extends AbstractNamespacedTypesProvider implements 
   private _namedTypes: NamedType[]
   private _namespaces: string[]
 
-  constructor(units: ICompilationUnit[], options: Partial<Options>) {
+  constructor(units: ICompilationUnit[], options: Partial<Options> = {}) {
     super()
     this._compilationUnits = units
     this._options = getOptions(options)

@@ -99,5 +99,5 @@ export function replaceReferences(type: TypeOrRef, replacer: (typeName: string) 
 }
 
 export function fqn(type: NamedType): string {
-  return `${type.namespace}.${type.name}`
+  return type.namespace && type.namespace.length > 0 ? `${type.namespace}.${type.name}` : type.name
 }

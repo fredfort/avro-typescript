@@ -62,7 +62,6 @@ typings/
 
 # test generator stuff
 input.avsc
-schemas
 output.ts
 output2.ts
 src/__debug.ts

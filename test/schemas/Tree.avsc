@@ -1,12 +1,12 @@
 {
   "type": "record",
   "name": "Tree",
+  "description": "Non-satisfiable infinite recursive tree type.",
   "namespace": "com.company",
   "fields": [
     {
       "name": "left",
       "type": [
-        "null",
         "com.company.Tree",
         {
           "type": "record",
@@ -24,7 +24,6 @@
     {
       "name": "right",
       "type": [
-        "null",
         "com.company.Tree",
         "com.company.Leaf"
       ]
