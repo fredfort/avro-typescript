@@ -13,6 +13,7 @@ import {
   Expression,
   Identifier,
   PropertyAccessExpression,
+  NumericLiteral,
 } from 'typescript'
 
 describe('Generate Type Guards', () => {
@@ -91,6 +92,13 @@ describe('Generate Type Guards', () => {
       expect(right.kind).to.eq(SyntaxKind.Identifier)
       expect((right as Identifier).escapedText).to.eq('undefined')
     })
+
+    expect(leafs[leafs.length - 1].kind).to.eq(SyntaxKind.BinaryExpression)
+    const keyCountCheck = leafs[leafs.length - 1] as BinaryExpression
+    expect(keyCountCheck.operatorToken.kind).to.eq(SyntaxKind.EqualsEqualsEqualsToken)
+    expect(keyCountCheck.right.kind).to.eq(SyntaxKind.NumericLiteral)
+    const keyCount = keyCountCheck.right as NumericLiteral
+    expect(parseInt(keyCount.text, 10)).to.eq(props.length)
   }
 
   describe('Primitives', () => {
@@ -118,6 +126,31 @@ describe('Generate Type Guards', () => {
         'doubleProp',
         'floatProp',
         'nullProp',
+      ])
+    })
+  })
+
+  describe('Person', () => {
+    const schema = getSchema('Person')
+    const context = new RootTypeContext([{ filename: 'sample', rootType: schema }])
+    const interfaceSource = generateInterface(context.getRecordType('Person'), context)
+    const typeGuardSource = generateTypeGuard(context.getRecordType('Person'), context)
+    const sourceCode = `${interfaceSource}\n${typeGuardSource}`
+    const program = getProgram(sourceCode)
+    const source = getSingleSourceFile(program)
+    const functions = getFunctions(source)
+
+    it('should have named the type guard correctly', () => {
+      const fnNames = functions.map((i) => i.name.escapedText)
+      expect(fnNames).to.have.length(1)
+      expect(fnNames).to.have.members(['isPerson'])
+    })
+
+    it('should check for the right properties', () => {
+      checkTypeGuard(functions.find((i) => i.name.escapedText === 'isPerson'), 'IPerson', [
+        'name',
+        'birthYear',
+        'gender',
       ])
     })
   })
