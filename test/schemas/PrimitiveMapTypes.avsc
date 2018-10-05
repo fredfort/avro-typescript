@@ -1,0 +1,56 @@
+{
+  "type": "record",
+  "name": "PrimitiveMapTypes",
+  "description": "Object with map type fields. Each map has a primtive type as value.",
+  "fields": [
+    {
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "name": "stringMapProp"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": "boolean"
+      },
+      "name": "booleanMapProp"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": "long"
+      },
+      "name": "longMapProp"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": "int"
+      },
+      "name": "intMapProp"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": "double"
+      },
+      "name": "doubleMapProp"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": "float"
+      },
+      "name": "floatMapProp"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": "null"
+      },
+      "name": "nullMapProp"
+    }
+  ]
+}

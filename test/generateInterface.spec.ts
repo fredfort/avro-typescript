@@ -32,7 +32,6 @@ describe('Generate Interfaces', () => {
       expect(interfaceNames).to.have.length(1)
       expect(interfaceNames).to.have.members(['IPrimitiveProps'])
     })
-
     it('should have added the interface properties correctly', () => {
       const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'IPrimitiveProps')
       const types = {
@@ -44,7 +43,6 @@ describe('Generate Interfaces', () => {
         float: 'number',
         null: 'null',
       }
-
       const avroTypes = Object.keys(types)
       expect(getSimpleFields(interfaceDecl)).to.have.length(avroTypes.length)
 
@@ -72,7 +70,6 @@ describe('Generate Interfaces', () => {
       expect(interfaceNames).to.have.length(2)
       expect(interfaceNames).to.have.members(['ITree', 'ILeaf'])
     })
-
     it('should have added the interface properties correctly', () => {
       const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'ITree')
 
@@ -102,7 +99,6 @@ describe('Generate Interfaces', () => {
       expect(interfaceNames).to.have.length(1)
       expect(interfaceNames).to.have.members(['IPerson'])
     })
-
     it('should have added the interface properties correctly', () => {
       const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'IPerson')
 
@@ -133,7 +129,6 @@ describe('Generate Interfaces', () => {
       expect(interfaceNames).to.have.length(1)
       expect(interfaceNames).to.have.members(['IPrimitiveArrays'])
     })
-
     it('should have added the interface properties correctly', () => {
       const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'IPrimitiveArrays')
       const types = {
@@ -176,7 +171,6 @@ describe('Generate Interfaces', () => {
       const interfaceNames = interfaces.map((i) => i.name.escapedText)
       expect(interfaceNames).to.have.include('IMixedTypeArrays')
     })
-
     // TODO better way to check union types
     it('should have added the interface properties correctly', () => {
       const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'IMixedTypeArrays')
@@ -204,6 +198,43 @@ describe('Generate Interfaces', () => {
       const enumOrObjectArrayField = getSimpleField(interfaceDecl, 'enumOrObjectArray')
       expect(enumOrObjectArrayField).to.be.an('object')
       expect(getArrayTypeName(program, enumOrObjectArrayField)).to.eq('IPlaceholder | PlaceholderEnum')
+    })
+  })
+
+  describe('PrimitveMapTypes.avsc', () => {
+    const schema = getSchema('PrimitiveMapTypes')
+    const context = new RootTypeContext([{ filename: 'MixedTypeArrays', rootType: schema }])
+    const rootSchema = context.getRecordType('PrimitiveMapTypes')
+    const sourceCode = generateInterface(rootSchema, context)
+    const program = getProgram(sourceCode)
+    const source = getSingleSourceFile(program)
+    const interfaces = getInterfaces(source)
+
+    it('should have generated IPrimitiveMapTypes interface', () => {
+      const interfaceNames = interfaces.map((i) => i.name.escapedText)
+      expect(interfaceNames).to.have.members(['IPrimitiveMapTypes'])
+    })
+    it('should have added the interface properties correctly', () => {
+      const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'IPrimitiveMapTypes')
+      const types = {
+        string: 'string',
+        boolean: 'boolean',
+        long: 'number',
+        int: 'number',
+        double: 'number',
+        float: 'number',
+        null: 'null',
+      }
+      const avroTypes = Object.keys(types)
+      expect(getSimpleFields(interfaceDecl)).to.have.length(avroTypes.length)
+      avroTypes.forEach((avroType) => {
+        const fieldName = `${avroType}MapProp`
+        const field = getSimpleField(interfaceDecl, fieldName)
+        expect(field).to.be.an('object')
+        const type = getTypeName(program, field)
+        // TODO better way to assert this
+        expect(type).to.eq(`{ [index: string]: ${types[avroType]}; }`)
+      })
     })
   })
 })
