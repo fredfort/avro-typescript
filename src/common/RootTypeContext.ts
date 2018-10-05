@@ -10,7 +10,7 @@ import {
 } from '../model'
 import { TypeContext } from './TypeContext'
 import { TypeByNameResolver } from './TypeByNameResolver'
-import { nameComparator, fqn } from './utils'
+import { nameComparator, fqn, alphaComparator } from './utils'
 import { AbstractNamespacedTypesProvider } from './AbstractNamespacedTypesProvider'
 
 export class RootTypeContext extends AbstractNamespacedTypesProvider implements IRootContext {
@@ -67,8 +67,8 @@ export class RootTypeContext extends AbstractNamespacedTypesProvider implements 
   public getNamespaces(): string[] {
     if (!Array.isArray(this._namespaces)) {
       const withDuplicates = this.getNamedTypes().map(({ namespace }) => namespace)
-      const uniquest = new Set<string>(withDuplicates)
-      this._namespaces = Array.from(uniquest).filter((namespace) => typeof namespace === 'string')
+      const uniqueNamespaces = new Set<string>(withDuplicates)
+      this._namespaces = Array.from(uniqueNamespaces).sort(alphaComparator)
     }
     return this._namespaces
   }

@@ -71,7 +71,7 @@ export class TypeContext extends AbstractNamespacedTypesProvider implements ITyp
     const withDuplicates = this.getNamedTypes().map(({ namespace }) => namespace)
     const uniques = new Set<string>(withDuplicates)
     return Array.from(uniques)
-      .filter((namespace) => typeof namespace === 'string')
+      .map((namespace) => (typeof namespace === 'string' ? namespace : null))
       .sort(alphaComparator)
   }
 
@@ -92,10 +92,10 @@ export class TypeContext extends AbstractNamespacedTypesProvider implements ITyp
       type.forEach((tp) => TypeContext._addNamespacesToNamedTypes(tp, namespace, fqnResolver))
     } else if (isEnumType(type)) {
       type.namespace = type.namespace || namespace
-      fqnResolver.add(type.namespace, type.name)
+      fqnResolver.add(type)
     } else if (isRecordType(type)) {
       type.namespace = type.namespace || namespace
-      fqnResolver.add(type.namespace, type.name)
+      fqnResolver.add(type)
       type.fields.forEach((field) => TypeContext._addNamespacesToNamedTypes(field.type, type.namespace, fqnResolver))
     } else if (isArrayType(type)) {
       TypeContext._addNamespacesToNamedTypes(type.items, namespace, fqnResolver)

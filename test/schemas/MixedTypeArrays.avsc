@@ -1,0 +1,73 @@
+{
+  "type": "record",
+  "name": "MixedTypeArrays",
+  "description": "Arrays with primitve items.",
+  "fields": [
+    {
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "Placeholder",
+          "fields": []
+        }
+      },
+      "name": "objectArray"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": [
+          "null",
+          "Placeholder"
+        ]
+      },
+      "name": "optionalObjectArray"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "enum",
+          "name": "PlaceholderEnum",
+          "symbols": [
+            "X"
+          ]
+        }
+      },
+      "name": "enumArray"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": [
+          "null",
+          "PlaceholderEnum"
+        ]
+      },
+      "name": "optionalEnumArray"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": [
+          "string",
+          "int",
+          "boolean",
+          "null"
+        ]
+      },
+      "name": "primitiveTypeUnionArray"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": [
+          "Placeholder",
+          "PlaceholderEnum"
+        ]
+      },
+      "name": "enumOrObjectArray"
+    }
+  ]
+}

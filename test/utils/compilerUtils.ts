@@ -18,6 +18,7 @@ import {
   UnionType,
   TypeAliasDeclaration,
   FunctionDeclaration,
+  ArrayTypeNode,
 } from 'typescript'
 
 export const SAMPLE_FILE_NAME = 'sample.ts'
@@ -42,6 +43,7 @@ export function getProgram(sourceText: string): Program {
   const config: CompilerOptions = {
     noResolve: true,
     target: ScriptTarget.Latest,
+    strictNullChecks: true,
   }
   return createProgram([SAMPLE_FILE_NAME], config, new TestCompilerHost(sourceText))
 }
@@ -82,6 +84,15 @@ export function getTypeName(program: Program, prop: PropertySignature): string {
   const typeChecker = program.getTypeChecker()
   const type = typeChecker.getTypeAtLocation(prop.type)
   return typeChecker.typeToString(type)
+}
+
+export function getArrayTypeName(program: Program, { type, name }: PropertySignature): string {
+  const typeChecker = program.getTypeChecker()
+  if (type.kind !== SyntaxKind.ArrayType) {
+    throw new TypeError(`${name} is not an array!`)
+  }
+  const { elementType } = type as ArrayTypeNode
+  return typeChecker.typeToString(typeChecker.getTypeFromTypeNode(elementType))
 }
 
 export function getUnionTypeNames(program: Program, prop: PropertySignature): string[] {

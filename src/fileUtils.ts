@@ -30,8 +30,8 @@ export function readSchema(file: string): RecordType {
   return schema
 }
 
-export function writeTypescriptOutput(source: string): void {
-  const formattedSource = prettier.format(source, {
+export function format(source: string): string {
+  return prettier.format(source, {
     printWidth: 120,
     semi: true,
     parser: 'typescript',
@@ -42,5 +42,8 @@ export function writeTypescriptOutput(source: string): void {
     bracketSpacing: true,
     arrowParens: 'always',
   })
-  process.stdout.write(formattedSource)
+}
+
+export function writeTypescriptOutput(source: string): void {
+  process.stdout.write(format(source))
 }

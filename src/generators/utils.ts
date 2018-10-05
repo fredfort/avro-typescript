@@ -11,15 +11,6 @@ import {
 } from '../model'
 const constantCase = require('constant-case')
 
-export function alphaComparator(a: NamedType, b: NamedType) {
-  if (a.name < b.name) {
-    return -1
-  } else if (a.name > b.name) {
-    return 1
-  }
-  return 0
-}
-
 export function interfaceName(type: RecordType) {
   return `I${type.name}`
 }

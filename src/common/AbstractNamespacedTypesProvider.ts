@@ -1,6 +1,15 @@
 import { ITypeProvider, RecordType, EnumType, NamedType, Options } from '../model'
 import { fqn } from './utils'
 
+function matchesNamespace(ns: string) {
+  return ({ namespace }: NamedType) => {
+    if (ns === null || ns === undefined) {
+      return namespace === null || namespace === undefined
+    }
+    return ns === namespace
+  }
+}
+
 export abstract class AbstractNamespacedTypesProvider implements ITypeProvider {
   abstract getRecordTypes(): RecordType[]
   abstract getEnumTypes(): EnumType[]
@@ -9,13 +18,13 @@ export abstract class AbstractNamespacedTypesProvider implements ITypeProvider {
   abstract getOptions(): Options
 
   public getEnumTypesInNamespace(namespace: string): EnumType[] {
-    return this.getEnumTypes().filter(({ namespace: ns }) => ns === namespace)
+    return this.getEnumTypes().filter(matchesNamespace(namespace))
   }
   public getRecordTypesInNamespace(namespace: string): RecordType[] {
-    return this.getRecordTypes().filter(({ namespace: ns }) => ns === namespace)
+    return this.getRecordTypes().filter(matchesNamespace(namespace))
   }
   public getNamedTypesInNamespace(namespace: string): NamedType[] {
-    return this.getNamedTypes().filter(({ namespace: ns }) => ns === namespace)
+    return this.getNamedTypes().filter(matchesNamespace(namespace))
   }
   public getEnumType(qualifiedName: string): EnumType {
     return this.getEnumTypes().find((e) => fqn(e) === qualifiedName)
