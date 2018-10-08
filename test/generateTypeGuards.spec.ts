@@ -1,5 +1,4 @@
 import { expect } from 'chai'
-import { getProgram, getSingleSourceFile, getFunctions } from './utils/compilerUtils'
 import { getSchema } from './utils/fileUtils'
 import { generateInterface } from '../src/generators/generateInterface'
 import { generateTypeGuard } from '../src/generators/generateTypeGuard'
@@ -15,6 +14,7 @@ import {
   PropertyAccessExpression,
   NumericLiteral,
 } from 'typescript'
+import { TestCompilerHelper } from './utils/TestCompilerHelper'
 
 describe('Generate Type Guards', () => {
   function collectLeafs(expr: BinaryExpression, nodes: Expression[]): Expression[] {
@@ -107,18 +107,15 @@ describe('Generate Type Guards', () => {
     const interfaceSource = generateInterface(context.getRecordType('PrimitiveProps'), context)
     const typeGuardSource = generateTypeGuard(context.getRecordType('PrimitiveProps'), context)
     const sourceCode = `${interfaceSource}\n${typeGuardSource}`
-    const program = getProgram(sourceCode)
-    const source = getSingleSourceFile(program)
-    const functions = getFunctions(source)
+    const t = new TestCompilerHelper(sourceCode)
 
     it('should have named the type guard correctly', () => {
-      const fnNames = functions.map((i) => i.name.escapedText)
-      expect(fnNames).to.have.length(1)
-      expect(fnNames).to.have.members(['isPrimitiveProps'])
+      expect(t.getFunctions()).to.have.length(1)
+      expect(t.getFunction('isPrimitiveProps')).to.be.an('object')
     })
 
     it('should check for the right properties', () => {
-      checkTypeGuard(functions.find((i) => i.name.escapedText === 'isPrimitiveProps'), 'IPrimitiveProps', [
+      checkTypeGuard(t.getFunction('isPrimitiveProps'), 'IPrimitiveProps', [
         'stringProp',
         'booleanProp',
         'longProp',
@@ -136,22 +133,15 @@ describe('Generate Type Guards', () => {
     const interfaceSource = generateInterface(context.getRecordType('Person'), context)
     const typeGuardSource = generateTypeGuard(context.getRecordType('Person'), context)
     const sourceCode = `${interfaceSource}\n${typeGuardSource}`
-    const program = getProgram(sourceCode)
-    const source = getSingleSourceFile(program)
-    const functions = getFunctions(source)
+    const t = new TestCompilerHelper(sourceCode)
 
     it('should have named the type guard correctly', () => {
-      const fnNames = functions.map((i) => i.name.escapedText)
-      expect(fnNames).to.have.length(1)
-      expect(fnNames).to.have.members(['isPerson'])
+      expect(t.getFunctions()).to.have.length(1)
+      expect(t.getFunction('isPerson')).to.be.an('object')
     })
 
     it('should check for the right properties', () => {
-      checkTypeGuard(functions.find((i) => i.name.escapedText === 'isPerson'), 'IPerson', [
-        'name',
-        'birthYear',
-        'gender',
-      ])
+      checkTypeGuard(t.getFunction('isPerson'), 'IPerson', ['name', 'birthYear', 'gender'])
     })
   })
 })

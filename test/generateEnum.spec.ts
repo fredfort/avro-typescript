@@ -1,10 +1,10 @@
 import { expect } from 'chai'
-import { getProgram, getSingleSourceFile, getEnums, getTypeAliases } from './utils/compilerUtils'
 import { getSchema } from './utils/fileUtils'
 import { generateEnumType } from '../src/generators/generateEnum'
 import { RootTypeContext } from '../src/common/RootTypeContext'
 import { EnumVariant } from '../src/model'
 import { SyntaxKind, UnionTypeNode } from 'typescript'
+import { TestCompilerHelper } from './utils/TestCompilerHelper'
 
 describe('Generate Enums', () => {
   describe('Person', () => {
@@ -13,17 +13,15 @@ describe('Generate Enums', () => {
       const context = new RootTypeContext([{ filename: 'Person', rootType: schema }], { enums: EnumVariant.ENUM })
       const genderSchema = context.getEnumType('Gender')
       const sourceCode = `${generateEnumType(genderSchema, context)}`
-      const program = getProgram(sourceCode)
-      const source = getSingleSourceFile(program)
-      const enums = getEnums(source)
+      const t = new TestCompilerHelper(sourceCode)
 
       it('should have generated Gender as a basic enum', () => {
-        expect(enums).to.have.length(1)
-        expect(enums.map((e) => e.name.getText())).to.have.members(['Gender'])
+        expect(t.getEnums()).to.have.length(1)
+        expect(t.getEnum('Gender')).to.be.an('object')
       })
 
       it('should have generated "male" and "female" enum constants', () => {
-        const gender = enums.find((e) => e.name.getText() === 'Gender')
+        const gender = t.getEnum('Gender')
         expect(gender.members).to.have.length(2)
         expect(gender.members.map((v) => v.name.getText())).to.have.members(['male', 'female'])
         expect(gender.members.map((v) => v.initializer.getText())).to.have.members(["'male'", "'female'"])
@@ -34,24 +32,22 @@ describe('Generate Enums', () => {
       const context = new RootTypeContext([{ filename: 'Person', rootType: schema }], { enums: EnumVariant.CONST_ENUM })
       const genderSchema = context.getEnumType('Gender')
       const sourceCode = `${generateEnumType(genderSchema, context)}`
-      const program = getProgram(sourceCode)
-      const source = getSingleSourceFile(program)
-      const enums = getEnums(source)
+      const t = new TestCompilerHelper(sourceCode)
 
       it('should have generated Gender as a basic enum', () => {
-        expect(enums).to.have.length(1)
-        expect(enums.map((e) => e.name.getText())).to.have.members(['Gender'])
+        expect(t.getEnums()).to.have.length(1)
+        expect(t.getEnum('Gender')).to.be.an('object')
       })
 
       it('should have generated "male" and "female" enum constants', () => {
-        const gender = enums.find((e) => e.name.getText() === 'Gender')
+        const gender = t.getEnum('Gender')
         expect(gender.members).to.have.length(2)
         expect(gender.members.map((v) => v.name.getText())).to.have.members(['male', 'female'])
         expect(gender.members.map((v) => v.initializer.getText())).to.have.members(["'male'", "'female'"])
       })
 
       it('should have generated a const enum', () => {
-        const gender = enums.find((e) => e.name.getText() === 'Gender')
+        const gender = t.getEnum('Gender')
         expect(gender.modifiers.some((e) => e.kind === SyntaxKind.ConstKeyword)).to.eq(true)
       })
     })
@@ -60,17 +56,15 @@ describe('Generate Enums', () => {
       const context = new RootTypeContext([{ filename: 'Person', rootType: schema }], { enums: EnumVariant.STRING })
       const genderSchema = context.getEnumType('Gender')
       const sourceCode = `${generateEnumType(genderSchema, context)}`
-      const program = getProgram(sourceCode)
-      const source = getSingleSourceFile(program)
-      const enums = getTypeAliases(source)
+      const t = new TestCompilerHelper(sourceCode)
 
       it('should have generated Gender as a basic enum', () => {
-        expect(enums).to.have.length(1)
-        expect(enums.map((e) => e.name.getText())).to.have.members(['Gender'])
+        expect(t.getTypeAliases()).to.have.length(1)
+        expect(t.getTypeAlias('Gender')).to.be.an('object')
       })
 
       it('should have "male" and "female" as literals', () => {
-        const gender = enums.find((e) => e.name.getText() === 'Gender')
+        const gender = t.getTypeAlias('Gender')
         expect(gender.type.kind).to.eq(SyntaxKind.UnionType)
         const unionType = gender.type as UnionTypeNode
         expect(unionType.types.map((t) => t.getText())).to.have.members(["'male'", "'female'"])
