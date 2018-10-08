@@ -122,30 +122,15 @@ describe('Generate Interfaces', () => {
       t.expectArrayType(t.expectTypeReference('IPlaceholder'))(typeOf('objectArray'))
       t.expectArrayType(t.expectUnionType(['IPlaceholder', 'null']))(typeOf('optionalObjectArray'))
       t.expectArrayType(t.expectTypeReference('PlaceholderEnum'))(typeOf('enumArray'))
-
-      /* 
-
-      const enumArrayField = getSimpleField(interfaceDecl, 'enumArray')
-      expect(enumArrayField).to.be.an('object')
-      expect(getArrayTypeName(program, enumArrayField)).to.eq('PlaceholderEnum')
-
-      const optionalEnumArrayField = getSimpleField(interfaceDecl, 'optionalEnumArray')
-      expect(optionalEnumArrayField).to.be.an('object')
-      expect(getArrayTypeName(program, optionalEnumArrayField)).to.eq('PlaceholderEnum | null')
-
-      const primitiveTypeUnionArrayField = getSimpleField(interfaceDecl, 'primitiveTypeUnionArray')
-      expect(primitiveTypeUnionArrayField).to.be.an('object')
-      expect(getArrayTypeName(program, primitiveTypeUnionArrayField)).to.eq('string | number | boolean | null')
-
-      const enumOrObjectArrayField = getSimpleField(interfaceDecl, 'enumOrObjectArray')
-      expect(enumOrObjectArrayField).to.be.an('object')
-      expect(getArrayTypeName(program, enumOrObjectArrayField)).to.eq('IPlaceholder | PlaceholderEnum') */
+      t.expectArrayType(t.expectUnionType(['PlaceholderEnum', 'null']))(typeOf('optionalEnumArray'))
+      t.expectArrayType(t.expectUnionType(['string', 'number', 'boolean', 'null']))(typeOf('primitiveTypeUnionArray'))
+      t.expectArrayType(t.expectUnionType(['IPlaceholder', 'PlaceholderEnum']))(typeOf('enumOrObjectArray'))
     })
   })
 
   describe('PrimitveMapTypes.avsc', () => {
     const schema = getSchema('PrimitiveMapTypes')
-    const context = new RootTypeContext([{ filename: 'MixedTypeArrays', rootType: schema }])
+    const context = new RootTypeContext([{ filename: 'PrimitiveMapTypes', rootType: schema }])
     const rootSchema = context.getRecordType('PrimitiveMapTypes')
     const sourceCode = generateInterface(rootSchema, context)
     const t = new TestCompilerHelper(sourceCode)
@@ -163,6 +148,29 @@ describe('Generate Interfaces', () => {
       t.expectMapType(t.expectNumberType)(typeOf('floatMapProp'))
       t.expectMapType(t.expectNumberType)(typeOf('doubleMapProp'))
       t.expectMapType(t.expectNullType)(typeOf('nullMapProp'))
+    })
+  })
+
+  describe('UnionTypes.avsc', () => {
+    const schema = getSchema('UnionTypes')
+    const options: Partial<Options> = { enums: EnumVariant.ENUM }
+    const context = new RootTypeContext([{ filename: 'UnionTypes', rootType: schema }], options)
+    const sourceCode = `${generateEnumType(context.getEnumType('PlaceholderEnum'), context)}
+    ${generateInterface(context.getRecordType('Placeholder'), context)}
+    ${generateInterface(context.getRecordType('UnionTypes'), context)}`
+
+    const t = new TestCompilerHelper(sourceCode)
+
+    it('should have generated IUnionTypes interface', () => {
+      expect(t.getInterface('IUnionTypes')).to.be.an('object')
+    })
+    it('should have added the interface properties correctly', () => {
+      expect(t.getFields(t.getInterface('IUnionTypes'))).to.have.length(4)
+      const typeOf = t.getFieldType(t.getInterface('IUnionTypes'))
+      t.expectUnionType(['number', 'string', 'boolean', 'null'])(typeOf('primitiveUnionProp'))
+      t.expectUnionType(['null', 'PlaceholderEnum'])(typeOf('enumOrNullProp'))
+      t.expectUnionType(['null', 'IPlaceholder'])(typeOf('objectOrNullProp'))
+      t.expectUnionType(['null', 'IPlaceholder', 'PlaceholderEnum'])(typeOf('enumNullOrObjectProp'))
     })
   })
 })

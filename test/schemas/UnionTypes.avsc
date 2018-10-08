@@ -4,26 +4,44 @@
   "description": "Record with union type fields.",
   "fields": [
     {
-      "name": "left",
+      "name": "primitiveUnionProp",
       "type": [
-        "com.company.Tree",
+        "int",
+        "string",
+        "boolean",
+        "null"
+      ]
+    },
+    {
+      "name": "enumOrNullProp",
+      "type": [
+        "null",
         {
-          "type": "record",
-          "name": "Leaf",
-          "fields": [
-            {
-              "name": "value",
-              "type": "string"
-            }
+          "type": "enum",
+          "name": "PlaceholderEnum",
+          "symbols": [
+            "foo"
           ]
         }
       ]
     },
     {
-      "name": "right",
+      "name": "objectOrNullProp",
       "type": [
-        "com.company.Tree",
-        "com.company.Leaf"
+        "null",
+        {
+          "type": "record",
+          "name": "Placeholder",
+          "fields": []
+        }
+      ]
+    },
+    {
+      "name": "enumNullOrObjectProp",
+      "type": [
+        "null",
+        "Placeholder",
+        "PlaceholderEnum"
       ]
     }
   ]

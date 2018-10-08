@@ -30,6 +30,7 @@ import {
 } from 'typescript'
 import { expect } from 'chai'
 import { TestCompilerHost } from './TestCompilerHost'
+import { format } from '../../src/fileUtils'
 
 interface NamedNode {
   name?: Identifier
@@ -45,11 +46,23 @@ export class TestCompilerHelper {
   private readonly program: Program
   private readonly typeChecker: TypeChecker
   private readonly compilerHost: CompilerHost
+  private readonly sourceCode: string
 
   constructor(source: string) {
     this.compilerHost = new TestCompilerHost(source, this.getFileName(), this.getCompilerOptions())
     this.program = createProgram([this.getFileName()], this.getCompilerOptions(), this.compilerHost)
     this.typeChecker = this.program.getTypeChecker()
+    this.sourceCode = source
+  }
+
+  // Configurable settings
+
+  protected getCompilerOptions() {
+    return DefaultCompilerOptions
+  }
+
+  protected getFileName() {
+    return 'sample.ts'
   }
 
   // Asserters
@@ -138,13 +151,9 @@ export class TestCompilerHelper {
     return field.type
   }
 
-  // Configurable settings
+  // Utilities
 
-  protected getCompilerOptions() {
-    return DefaultCompilerOptions
-  }
-
-  protected getFileName() {
-    return 'sample.ts'
+  printSourceCode() {
+    console.log(format(this.sourceCode))
   }
 }
