@@ -629,40 +629,13 @@ function generateContent(recordTypes, enumTypes, context) {
 }
 
 function generateNamespace(namespace, context) {
-    if (namespace === null) {
-        return generateContent(context.getRecordTypes(), context.getEnumTypes(), context);
-    }
     const content = generateContent(context.getRecordTypesInNamespace(namespace), context.getEnumTypesInNamespace(namespace), context);
+    if (!namespace) {
+        return content;
+    }
     return `export namespace ${namespace} {
     ${content}
   }`;
-}
-
-class FullyQualifiedNameStore {
-    constructor() {
-        this.fqns = new Set();
-    }
-    add(namespace, name) {
-        this.fqns.add(`${namespace}.${name}`);
-    }
-    get(name) {
-        if (this.fqns.has(name)) {
-            return name;
-        }
-        const arr = Array.from(this.fqns);
-        const matching = arr.filter((fqn) => {
-            const segments = fqn.split('.');
-            return segments[segments.length - 1] === name;
-        });
-        switch (matching.length) {
-            case 0:
-                return null;
-            case 1:
-                return matching[0];
-            default:
-                throw new TypeError(`Multiple identical fqns for ${name}: ${matching.join(', ')}`);
-        }
-    }
 }
 
 function setsEqual(set1, set2) {
@@ -675,7 +648,7 @@ function setsEqual(set1, set2) {
     }
     return true;
 }
-function alphaComparator$1(a, b) {
+function alphaComparator(a, b) {
     if (a < b) {
         return -1;
     }
@@ -685,7 +658,7 @@ function alphaComparator$1(a, b) {
     return 0;
 }
 function nameComparator(a, b) {
-    return alphaComparator$1(a.name, b.name);
+    return alphaComparator(a.name, b.name);
 }
 function collectRecordTypes(type, accumulatedTypes, visited = []) {
     if (accumulatedTypes.indexOf(type) >= 0) {
@@ -755,7 +728,37 @@ function replaceReferences(type, replacer) {
     }
 }
 function fqn(type) {
-    return type.namespace && type.namespace.length > 0 ? `${type.namespace}.${type.name}` : type.name;
+    if (type.namespace && type.namespace.length > 0) {
+        return `${type.namespace}.${type.name}`;
+    }
+    return type.name;
+}
+
+class FullyQualifiedNameStore {
+    constructor() {
+        this.fqns = new Set();
+    }
+    add(type) {
+        this.fqns.add(fqn(type));
+    }
+    get(name) {
+        if (this.fqns.has(name)) {
+            return name;
+        }
+        const arr = Array.from(this.fqns);
+        const matching = arr.filter((fqn$$1) => {
+            const segments = fqn$$1.split('.');
+            return segments[segments.length - 1] === name;
+        });
+        switch (matching.length) {
+            case 0:
+                return null;
+            case 1:
+                return matching[0];
+            default:
+                throw new TypeError(`Multiple identical fqns for ${name}: ${matching.join(', ')}`);
+        }
+    }
 }
 
 class TypeByNameResolver {
@@ -811,15 +814,23 @@ class TypeByNameResolver {
     }
 }
 
+function matchesNamespace(ns) {
+    return ({ namespace }) => {
+        if (ns === null || ns === undefined) {
+            return namespace === null || namespace === undefined;
+        }
+        return ns === namespace;
+    };
+}
 class AbstractNamespacedTypesProvider {
     getEnumTypesInNamespace(namespace) {
-        return this.getEnumTypes().filter(({ namespace: ns }) => ns === namespace);
+        return this.getEnumTypes().filter(matchesNamespace(namespace));
     }
     getRecordTypesInNamespace(namespace) {
-        return this.getRecordTypes().filter(({ namespace: ns }) => ns === namespace);
+        return this.getRecordTypes().filter(matchesNamespace(namespace));
     }
     getNamedTypesInNamespace(namespace) {
-        return this.getNamedTypes().filter(({ namespace: ns }) => ns === namespace);
+        return this.getNamedTypes().filter(matchesNamespace(namespace));
     }
     getEnumType(qualifiedName) {
         return this.getEnumTypes().find((e) => fqn(e) === qualifiedName);
@@ -873,8 +884,8 @@ class TypeContext extends AbstractNamespacedTypesProvider {
         const withDuplicates = this.getNamedTypes().map(({ namespace }) => namespace);
         const uniques = new Set(withDuplicates);
         return Array.from(uniques)
-            .filter((namespace) => typeof namespace === 'string')
-            .sort(alphaComparator$1);
+            .map((namespace) => (typeof namespace === 'string' ? namespace : null))
+            .sort(alphaComparator);
     }
     resolveTypes(resolver) {
         this.getRecordTypes().forEach((record) => TypeContext._resolveReferenceFullyQualifiedRefs(record, resolver));
@@ -888,11 +899,11 @@ class TypeContext extends AbstractNamespacedTypesProvider {
         }
         else if (isEnumType(type)) {
             type.namespace = type.namespace || namespace;
-            fqnResolver.add(type.namespace, type.name);
+            fqnResolver.add(type);
         }
         else if (isRecordType(type)) {
             type.namespace = type.namespace || namespace;
-            fqnResolver.add(type.namespace, type.name);
+            fqnResolver.add(type);
             type.fields.forEach((field) => TypeContext._addNamespacesToNamedTypes(field.type, type.namespace, fqnResolver));
         }
         else if (isArrayType(type)) {
@@ -947,8 +958,8 @@ class RootTypeContext extends AbstractNamespacedTypesProvider {
     getNamespaces() {
         if (!Array.isArray(this._namespaces)) {
             const withDuplicates = this.getNamedTypes().map(({ namespace }) => namespace);
-            const uniquest = new Set(withDuplicates);
-            this._namespaces = Array.from(uniquest).filter((namespace) => typeof namespace === 'string');
+            const uniqueNamespaces = new Set(withDuplicates);
+            this._namespaces = Array.from(uniqueNamespaces).sort(alphaComparator);
         }
         return this._namespaces;
     }
@@ -1047,8 +1058,8 @@ function readSchema(file) {
     const schema = JSON.parse(content);
     return schema;
 }
-function writeTypescriptOutput(source) {
-    const formattedSource = prettier.format(source, {
+function format(source) {
+    return prettier.format(source, {
         printWidth: 120,
         semi: true,
         parser: 'typescript',
@@ -1059,7 +1070,9 @@ function writeTypescriptOutput(source) {
         bracketSpacing: true,
         arrowParens: 'always',
     });
-    process.stdout.write(formattedSource);
+}
+function writeTypescriptOutput(source) {
+    process.stdout.write(format(source));
 }
 
 function getFieldNames(type, context) {
