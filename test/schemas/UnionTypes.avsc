@@ -1,0 +1,30 @@
+{
+  "type": "record",
+  "name": "UnionTypes",
+  "description": "Record with union type fields.",
+  "fields": [
+    {
+      "name": "left",
+      "type": [
+        "com.company.Tree",
+        {
+          "type": "record",
+          "name": "Leaf",
+          "fields": [
+            {
+              "name": "value",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right",
+      "type": [
+        "com.company.Tree",
+        "com.company.Leaf"
+      ]
+    }
+  ]
+}

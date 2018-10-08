@@ -5,15 +5,15 @@ import {
   getInterfaces,
   getSimpleField,
   getSimpleFields,
-  getTypeName,
-  getUnionTypeNames,
   getArrayTypeName,
+  getTypeName,
 } from './utils/compilerUtils'
 import { getSchema } from './utils/fileUtils'
 import { generateInterface } from '../src/generators/generateInterface'
 import { generateEnumType } from '../src/generators/generateEnum'
 import { RootTypeContext } from '../src/common/RootTypeContext'
 import { Options, EnumVariant } from '../src/model'
+import { TypeAsserter } from './utils/TypeAsserter'
 
 describe('Generate Interfaces', () => {
   describe('Primitives.avsc', () => {
@@ -34,25 +34,17 @@ describe('Generate Interfaces', () => {
     })
     it('should have added the interface properties correctly', () => {
       const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'IPrimitiveProps')
-      const types = {
-        string: 'string',
-        boolean: 'boolean',
-        long: 'number',
-        int: 'number',
-        double: 'number',
-        float: 'number',
-        null: 'null',
-      }
-      const avroTypes = Object.keys(types)
-      expect(getSimpleFields(interfaceDecl)).to.have.length(avroTypes.length)
 
-      avroTypes.forEach((avroType) => {
-        const fieldName = `${avroType}Prop`
-        const field = getSimpleField(interfaceDecl, fieldName)
-        expect(field).to.be.an('object')
-        const type = getTypeName(program, field)
-        expect(type).to.eq(types[avroType])
-      })
+      expect(getSimpleFields(interfaceDecl)).to.have.length(7)
+
+      const t = new TypeAsserter(program)
+      t.expectStringType(getSimpleField(interfaceDecl, 'stringProp').type)
+      t.expectBooleanType(getSimpleField(interfaceDecl, 'booleanProp').type)
+      t.expectNumberType(getSimpleField(interfaceDecl, 'intProp').type)
+      t.expectNumberType(getSimpleField(interfaceDecl, 'longProp').type)
+      t.expectNumberType(getSimpleField(interfaceDecl, 'floatProp').type)
+      t.expectNumberType(getSimpleField(interfaceDecl, 'doubleProp').type)
+      t.expectNullType(getSimpleField(interfaceDecl, 'nullProp').type)
     })
   })
   describe('Tree.avsc', () => {
@@ -72,16 +64,9 @@ describe('Generate Interfaces', () => {
     })
     it('should have added the interface properties correctly', () => {
       const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'ITree')
-
-      const leftField = getSimpleField(interfaceDecl, 'left')
-      expect(leftField).to.be.an('object')
-      const leftFieldTypes = getUnionTypeNames(program, leftField)
-      expect(leftFieldTypes).to.have.members(['ITree', 'ILeaf'])
-
-      const rightField = getSimpleField(interfaceDecl, 'right')
-      expect(rightField).to.be.an('object')
-      const rightFieldTypes = getUnionTypeNames(program, rightField)
-      expect(rightFieldTypes).to.have.members(['ITree', 'ILeaf'])
+      const t = new TypeAsserter(program)
+      t.expectUnionType(getSimpleField(interfaceDecl, 'left').type, ['ITree', 'ILeaf'])
+      t.expectUnionType(getSimpleField(interfaceDecl, 'right').type, ['ITree', 'ILeaf'])
     })
   })
   describe('Person.avsc', () => {
@@ -101,18 +86,10 @@ describe('Generate Interfaces', () => {
     })
     it('should have added the interface properties correctly', () => {
       const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'IPerson')
-
-      const nameType = getSimpleField(interfaceDecl, 'name')
-      expect(nameType).to.be.an('object')
-      expect(getTypeName(program, nameType)).to.eq('string')
-
-      const birthYearType = getSimpleField(interfaceDecl, 'birthYear')
-      expect(birthYearType).to.be.an('object')
-      expect(getTypeName(program, birthYearType)).to.eq('number')
-
-      const genderType = getSimpleField(interfaceDecl, 'gender')
-      expect(genderType).to.be.an('object')
-      expect(getTypeName(program, genderType)).to.eq('Gender')
+      const t = new TypeAsserter(program)
+      t.expectStringType(getSimpleField(interfaceDecl, 'name').type)
+      t.expectNumberType(getSimpleField(interfaceDecl, 'birthYear').type)
+      t.expectTypeReference(getSimpleField(interfaceDecl, 'gender').type, 'Gender')
     })
   })
   describe('PrimitiveArrays.avsc', () => {
@@ -131,24 +108,15 @@ describe('Generate Interfaces', () => {
     })
     it('should have added the interface properties correctly', () => {
       const interfaceDecl = interfaces.find((idecl) => idecl.name.escapedText.toString() === 'IPrimitiveArrays')
-      const types = {
-        string: 'string',
-        boolean: 'boolean',
-        long: 'number',
-        int: 'number',
-        double: 'number',
-        float: 'number',
-        null: 'null',
-      }
-      const avroTypes = Object.keys(types)
-      expect(getSimpleFields(interfaceDecl)).to.have.length(avroTypes.length)
-      avroTypes.forEach((avroType) => {
-        const fieldName = `${avroType}ArrayProp`
-        const field = getSimpleField(interfaceDecl, fieldName)
-        expect(field).to.be.an('object')
-        const arrayType = getArrayTypeName(program, field)
-        expect(arrayType).to.eq(types[avroType])
-      })
+      expect(getSimpleFields(interfaceDecl)).to.have.length(7)
+      const t = new TypeAsserter(program)
+      t.expectStringArrayType(getSimpleField(interfaceDecl, 'stringArrayProp').type)
+      t.expectBooleanArrayType(getSimpleField(interfaceDecl, 'booleanArrayProp').type)
+      t.expectNumberArrayType(getSimpleField(interfaceDecl, 'intArrayProp').type)
+      t.expectNumberArrayType(getSimpleField(interfaceDecl, 'longArrayProp').type)
+      t.expectNumberArrayType(getSimpleField(interfaceDecl, 'floatArrayProp').type)
+      t.expectNumberArrayType(getSimpleField(interfaceDecl, 'doubleArrayProp').type)
+      t.expectNullArrayType(getSimpleField(interfaceDecl, 'nullArrayProp').type)
     })
   })
   describe('MixedTypeArrays.avsc', () => {
