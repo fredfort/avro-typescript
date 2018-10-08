@@ -115,7 +115,6 @@ describe('Generate Interfaces', () => {
     it('should have generated IMixedTypeArrays interface', () => {
       expect(t.getInterface('IMixedTypeArrays')).to.be.an('object')
     })
-    // TODO better way to check union types
     it('should have added the interface properties correctly', () => {
       const typeOf = t.getFieldType(t.getInterface('IMixedTypeArrays'))
 
@@ -171,6 +170,35 @@ describe('Generate Interfaces', () => {
       t.expectUnionType(['null', 'PlaceholderEnum'])(typeOf('enumOrNullProp'))
       t.expectUnionType(['null', 'IPlaceholder'])(typeOf('objectOrNullProp'))
       t.expectUnionType(['null', 'IPlaceholder', 'PlaceholderEnum'])(typeOf('enumNullOrObjectProp'))
+    })
+  })
+
+  describe('MixedTypeMaps.avsc', () => {
+    const schema = getSchema('MixedTypeMaps')
+    const options: Partial<Options> = { enums: EnumVariant.ENUM }
+    const context = new RootTypeContext([{ filename: 'MixedTypeMaps', rootType: schema }], options)
+    const rootSchema = context.getRecordType('MixedTypeMaps')
+    const placeholderSchema = context.getRecordType('Placeholder')
+    const placeholderEnumSchema = context.getEnumType('PlaceholderEnum')
+
+    const sourceCode = `${generateEnumType(placeholderEnumSchema, context)}
+    ${generateInterface(placeholderSchema, context)}
+    ${generateInterface(rootSchema, context)}`
+
+    const t = new TestCompilerHelper(sourceCode)
+
+    it('should have generated IMixedTypeMaps interface', () => {
+      expect(t.getInterface('IMixedTypeMaps')).to.be.an('object')
+    })
+    it('should have added the interface properties correctly', () => {
+      const typeOf = t.getFieldType(t.getInterface('IMixedTypeMaps'))
+
+      t.expectMapType(t.expectTypeReference('IPlaceholder'))(typeOf('objectMap'))
+      t.expectMapType(t.expectUnionType(['IPlaceholder', 'null']))(typeOf('optionalObjectMap'))
+      t.expectMapType(t.expectTypeReference('PlaceholderEnum'))(typeOf('enumMap'))
+      t.expectMapType(t.expectUnionType(['PlaceholderEnum', 'null']))(typeOf('optionalEnumMap'))
+      t.expectMapType(t.expectUnionType(['string', 'number', 'boolean', 'null']))(typeOf('primitiveTypeUnionMap'))
+      t.expectMapType(t.expectUnionType(['IPlaceholder', 'PlaceholderEnum']))(typeOf('enumOrObjectMap'))
     })
   })
 })

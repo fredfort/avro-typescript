@@ -1,0 +1,73 @@
+{
+  "type": "record",
+  "name": "MixedTypeMaps",
+  "description": "Maps with primitve items.",
+  "fields": [
+    {
+      "type": {
+        "type": "map",
+        "values": {
+          "type": "record",
+          "name": "Placeholder",
+          "fields": []
+        }
+      },
+      "name": "objectMap"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": [
+          "null",
+          "Placeholder"
+        ]
+      },
+      "name": "optionalObjectMap"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": {
+          "type": "enum",
+          "name": "PlaceholderEnum",
+          "symbols": [
+            "X"
+          ]
+        }
+      },
+      "name": "enumMap"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": [
+          "null",
+          "PlaceholderEnum"
+        ]
+      },
+      "name": "optionalEnumMap"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": [
+          "string",
+          "int",
+          "boolean",
+          "null"
+        ]
+      },
+      "name": "primitiveTypeUnionMap"
+    },
+    {
+      "type": {
+        "type": "map",
+        "values": [
+          "Placeholder",
+          "PlaceholderEnum"
+        ]
+      },
+      "name": "enumOrObjectMap"
+    }
+  ]
+}
