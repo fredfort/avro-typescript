@@ -100,6 +100,13 @@ export class TestCompilerHelper {
   expectBooleanArrayType = this.expectArrayType(this.expectBooleanType)
   expectNullArrayType = this.expectArrayType(this.expectNullType)
 
+  expectParameterTypes = (...asserters: ((signatureNode: TypeNode) => void)[]) => (fn: FunctionDeclaration) => {
+    expect(fn.parameters).to.have.length(asserters.length)
+    for (let i = 0; i < asserters.length; i += 1) {
+      asserters[i](fn.parameters[i].type)
+    }
+  }
+
   // Bulk getters
 
   getASTNodesOfType = <T extends Node>(kind: SyntaxKind) => {
