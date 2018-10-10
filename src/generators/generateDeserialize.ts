@@ -1,37 +1,65 @@
-import { isRecordType, isArrayType, isMapType, Field, isEnumType, isUnion, isPrimitive, RecordType } from '../model'
+import {
+  isRecordType,
+  isArrayType,
+  isMapType,
+  Field,
+  isEnumType,
+  isUnion,
+  isPrimitive,
+  RecordType,
+  TypeVariant,
+  ArrayType,
+  ITypeProvider,
+} from '../model'
 import {
   getTypeName,
   asSelfExecuting,
   joinConditional,
   className,
-  resolveReference,
   qClassName,
   avroWrapperName,
   fqnConstantName,
   qualifiedName,
+  deserialiserName,
+  interfaceName,
+  qDeserialiserName,
 } from './utils'
 import { generateFieldType } from './generateFieldType'
-import { GeneratorContext } from './typings'
 
-function getKey(t: any, context: GeneratorContext) {
-  if (!isPrimitive(t) && typeof t === 'string') {
-    return getKey(resolveReference(t, context), context)
-  } else if (isEnumType(t) || isRecordType(t)) {
-    return context.options.removeNameSpace ? fqnConstantName(t) : `'${qualifiedName(t)}'`
+function getKey(t: any, context: ITypeProvider) {
+  if (isEnumType(t) || isRecordType(t)) {
+    return context.getOptions().namespaces ? `'${qualifiedName(t)}'` : fqnConstantName(t)
   } else {
-    return `'${getTypeName(t, context)}'`
+    return `'${getTypeName(t)}'`
   }
 }
 
-function generateAssignmentValue(type: any, context: GeneratorContext, inputVar: string) {
+// Handling the case when cloning an array of record type. This saves extra function creations
+function generateArrayDeserialize(type: ArrayType, context: ITypeProvider, inputVar: string): string {
+  let items = type.items as any
+  if (isUnion(items)) {
+    return `${inputVar}.map((e) => {
+      return ${generateAssignmentValue(items, context, 'e')}
+    })`
+  }
+  if (isRecordType(items) && context.getOptions().types === TypeVariant.INTERFACES_ONLY) {
+    return `${inputVar}.map(${qDeserialiserName(items, context)})`
+  }
+  return `${inputVar}.map((e) => ${generateAssignmentValue(items, context, 'e')})`
+}
+
+function generateAssignmentValue(type: any, context: ITypeProvider, inputVar: string) {
   if ((typeof type === 'string' && isPrimitive(type)) || isEnumType(type)) {
     return `${inputVar}`
   } else if (isRecordType(type)) {
-    return `${qClassName(type, context)}.deserialize(${inputVar})`
-  } else if (typeof type === 'string') {
-    return generateAssignmentValue(resolveReference(type, context), context, inputVar)
+    switch (context.getOptions().types) {
+      case TypeVariant.CLASSES:
+        return `${qClassName(type, context)}.deserialize(${inputVar})`
+      case TypeVariant.INTERFACES_ONLY:
+        return `${qDeserialiserName(type, context)}(${inputVar})`
+    }
   } else if (isArrayType(type)) {
-    return `${inputVar}.map((e) => ${generateAssignmentValue(type.items, context, 'e')})`
+    return generateArrayDeserialize(type, context, inputVar)
   } else if (isUnion(type)) {
     const nonNullTypes = type.filter((t) => (t as any) !== 'null')
     const hasNull = nonNullTypes.length !== type.length
@@ -64,14 +92,31 @@ function generateAssignmentValue(type: any, context: GeneratorContext, inputVar:
   return 'null'
 }
 
-function generateDeserializeFieldAssignment(field: Field, context: GeneratorContext): string {
+function generateDeserializeFieldAssignment(field: Field, context: ITypeProvider): string {
   return `${field.name}: ${generateAssignmentValue(field.type, context, `input.${field.name}`)},`
 }
 
-export function generateDeserialize(type: RecordType, context: GeneratorContext) {
+function generateStaticClassMethod(type: RecordType, context: ITypeProvider): string {
   return `public static deserialize(input: ${avroWrapperName(type)}): ${className(type)} {
     return new ${className(type)}({
       ${type.fields.map((f) => generateDeserializeFieldAssignment(f, context)).join('\n')}
     })
   }`
+}
+
+function generateStandaloneMethod(type: RecordType, context: ITypeProvider): string {
+  return `export function ${deserialiserName(type)}(input: ${avroWrapperName(type)}): ${interfaceName(type)} {
+    return {
+      ${type.fields.map((field) => generateDeserializeFieldAssignment(field, context)).join('\n')}
+    }
+  }`
+}
+
+export function generateDeserialize(type: RecordType, context: ITypeProvider) {
+  switch (context.getOptions().types) {
+    case TypeVariant.CLASSES:
+      return generateStaticClassMethod(type, context)
+    case TypeVariant.INTERFACES_ONLY:
+      return generateStandaloneMethod(type, context)
+  }
 }

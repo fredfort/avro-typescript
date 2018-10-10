@@ -1,0 +1,26 @@
+{
+  "name": "Person",
+  "type": "record",
+  "description": "Simple record type demonstrating having all primitive type fields.",
+  "fields": [
+    {
+      "type": "string",
+      "name": "name"
+    },
+    {
+      "type": "int",
+      "name": "birthYear"
+    },
+    {
+      "type": {
+        "type": "enum",
+        "name": "Gender",
+        "symbols": [
+          "male",
+          "female"
+        ]
+      },
+      "name": "gender"
+    }
+  ]
+}

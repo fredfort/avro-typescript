@@ -1,0 +1,56 @@
+{
+  "type": "record",
+  "name": "PrimitiveArrays",
+  "description": "Arrays with primitve items.",
+  "fields": [
+    {
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "name": "stringArrayProp"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": "boolean"
+      },
+      "name": "booleanArrayProp"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": "long"
+      },
+      "name": "longArrayProp"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": "int"
+      },
+      "name": "intArrayProp"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": "double"
+      },
+      "name": "doubleArrayProp"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": "float"
+      },
+      "name": "floatArrayProp"
+    },
+    {
+      "type": {
+        "type": "array",
+        "items": "null"
+      },
+      "name": "nullArrayProp"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "type": "record",
+  "name": "UnionTypes",
+  "description": "Record with union type fields.",
+  "fields": [
+    {
+      "name": "primitiveUnionProp",
+      "type": [
+        "int",
+        "string",
+        "boolean",
+        "null"
+      ]
+    },
+    {
+      "name": "enumOrNullProp",
+      "type": [
+        "null",
+        {
+          "type": "enum",
+          "name": "PlaceholderEnum",
+          "symbols": [
+            "foo"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "objectOrNullProp",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "Placeholder",
+          "fields": []
+        }
+      ]
+    },
+    {
+      "name": "enumNullOrObjectProp",
+      "type": [
+        "null",
+        "Placeholder",
+        "PlaceholderEnum"
+      ]
+    }
+  ]
+}

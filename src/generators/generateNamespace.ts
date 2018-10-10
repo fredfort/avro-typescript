@@ -1,17 +1,16 @@
-import { RecordType, EnumType } from '../model'
-import { GeneratorContext } from './typings'
+import { ITypeProvider } from '../model'
 import { generateContent } from './generateContent'
 
-export function generateNamespace(
-  namespace: string,
-  records: RecordType[],
-  enums: EnumType[],
-  context: GeneratorContext,
-): string {
-  if (namespace === null) {
-    return generateContent(records, enums, context)
+export function generateNamespace(namespace: string, context: ITypeProvider): string {
+  const content = generateContent(
+    context.getRecordTypesInNamespace(namespace),
+    context.getEnumTypesInNamespace(namespace),
+    context,
+  )
+  if (!namespace) {
+    return content
   }
   return `export namespace ${namespace} {
-    ${generateContent(records, enums, context)}
+    ${content}
   }`
 }

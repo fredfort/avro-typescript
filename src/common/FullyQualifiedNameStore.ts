@@ -1,7 +1,10 @@
-export class FqnResolver {
+import { NamedType } from '../model'
+import { fqn } from './utils'
+
+export class FullyQualifiedNameStore {
   private fqns: Set<string> = new Set()
-  public add(namespace: string, name: string): void {
-    this.fqns.add(`${namespace}.${name}`)
+  public add(type: NamedType): void {
+    this.fqns.add(fqn(type))
   }
   public get(name: string): string {
     if (this.fqns.has(name)) {
@@ -18,7 +21,7 @@ export class FqnResolver {
       case 1:
         return matching[0]
       default:
-        throw new TypeError(`Multiple matching fqns for ${name}: ${matching.join(', ')}`)
+        throw new TypeError(`Multiple identical fqns for ${name}: ${matching.join(', ')}`)
     }
   }
 }
