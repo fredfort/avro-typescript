@@ -36,7 +36,7 @@ export function nameComparator(a: NamedType, b: NamedType) {
 }
 
 export function collectRecordTypes(type: TypeOrRef, accumulatedTypes: RecordType[], visited: any[] = []): void {
-  if (accumulatedTypes.indexOf(type as any) >= 0) {
+  if (visited.indexOf(type as any) >= 0) {
     return
   }
   visited.push(type)
@@ -82,7 +82,7 @@ function replaceRefsHelper(type: TypeOrRef, replaceLocal: LocalReplacer, replace
   }
 }
 
-export function replaceReferences(type: TypeOrRef, replacer: (typeName: string) => NameOrType): void {
+export function replaceReferences(type: TypeOrRef, replacer: TypeReplacer): void {
   if (isUnion(type)) {
     type.forEach((optionType, i) => {
       replaceRefsHelper(optionType, (newValue) => (type[i] = newValue), replacer)

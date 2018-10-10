@@ -661,7 +661,7 @@ function nameComparator(a, b) {
     return alphaComparator(a.name, b.name);
 }
 function collectRecordTypes(type, accumulatedTypes, visited = []) {
-    if (accumulatedTypes.indexOf(type) >= 0) {
+    if (visited.indexOf(type) >= 0) {
         return;
     }
     visited.push(type);
